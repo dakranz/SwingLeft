@@ -5,6 +5,7 @@ from pathlib import Path
 import sys
 from zipfile import ZipFile
 
+
 # Avoid funky pathnames for windows
 def sanitize_path(txt):
     return ''.join(c if c.isalnum() or c in '-. _' else ';' for c in txt)
@@ -15,9 +16,10 @@ def sanitize_path(txt):
 # and a prefix of the name of the event. We are assuming that the export files are utf-8.
 
 
-def mobalize_america_to_action_network(path):
+def mobilize_america_to_action_network(path):
     oheaders = ('first_name', 'last_name', 'email', 'zip_code', 'phone')
     ofiles = {}
+    manifest_records = []
     with open(Path(path), newline='', encoding='utf-8') as ifile:
         records = []
         reader = csv.reader(ifile)
@@ -30,7 +32,8 @@ def mobalize_america_to_action_network(path):
         eid_index = iheaders.index('event id')
         ename_index = iheaders.index('event name')
         start_index = iheaders.index('start')
-        tag_index = iheaders.index('tag')
+        organization_index = iheaders.index('event organization name')
+        manifest_headers = ['Event', 'Filename', 'Date', 'Organization', 'Event Id', 'Tags']
 
         for record in reader:
             records.append(record)
@@ -38,7 +41,6 @@ def mobalize_america_to_action_network(path):
 
         current_eid = None
         current_start = None
-        current_tag = None
         out_records = None
         i = 0
         while i < len(records):
@@ -46,24 +48,35 @@ def mobalize_america_to_action_network(path):
             if record[eid_index] != current_eid or record[start_index] != current_start:
                 current_eid = record[eid_index]
                 current_start = record[start_index]
-                current_tag = record[tag_index]
-                assert current_tag is not None
                 out_records = []
-                ofile = sanitize_path('{}-{}-{}-{}.csv'.format(current_start[:10], record[ename_index][:20],
-                                      current_tag, current_eid))
+                ofile = sanitize_path('{}-{}-{}.csv'.format(current_start[:10], record[ename_index][:20],
+                                      current_eid))
                 ofiles[ofile] = out_records
+                manifest_records.append([record[ename_index], ofile, current_start,
+                                         record[organization_index], current_eid, ''])
+            zip_code = record[zip_index]
+            if len(zip_code) == 4:
+                zip_code = '0' + zip_code
             out_records.append([record[fn_index], record[ln_index], record[email_index],
-                                record[zip_index], record[phone_index]])
+                                zip_code, record[phone_index]])
             i += 1
 
         os.chdir('generated')
 
         for fname, records in ofiles.items():
             assert not os.path.exists(fname), fname
-            with open(Path(fname), 'w', newline='', encoding='ascii') as ofile:
+            with open(Path(fname), 'w', newline='', encoding='utf-8') as ofile:
                 writer = csv.writer(ofile)
                 writer.writerow(oheaders)
                 writer.writerows(records)
+        manifest = 'manifest.csv'
+        # Sort by event name
+        manifest_records.sort(key=itemgetter(0))
+        with open(Path(manifest), 'w', newline='', encoding='utf-8') as ofile:
+            writer = csv.writer(ofile)
+            writer.writerow(manifest_headers)
+            writer.writerows(manifest_records)
+        ofiles[manifest] = []
 
         zipname = path[:-4] + '.zip'
         with ZipFile(Path(zipname), 'w') as myzip:
@@ -71,4 +84,4 @@ def mobalize_america_to_action_network(path):
                 myzip.write(f)
 
 
-mobalize_america_to_action_network(sys.argv[1])
+mobilize_america_to_action_network(sys.argv[1])
