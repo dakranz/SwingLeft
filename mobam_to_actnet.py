@@ -40,19 +40,19 @@ def mobilize_america_to_action_network(path):
         records.sort(key=itemgetter(eid_index, start_index))
 
         current_eid = None
-        current_start = None
+        current_start_date = None
         out_records = None
         i = 0
         while i < len(records):
             record = records[i]
-            if record[eid_index] != current_eid or record[start_index] != current_start:
+            if record[eid_index] != current_eid or record[start_index][:10] != current_start_date:
                 current_eid = record[eid_index]
-                current_start = record[start_index]
+                current_start_date = record[start_index][:10]
                 out_records = []
-                ofile = sanitize_path('{}-{}-{}.csv'.format(current_start[:10], record[ename_index][:20],
+                ofile = sanitize_path('{}-{}-{}.csv'.format(current_start_date, record[ename_index][:20],
                                       current_eid))
                 ofiles[ofile] = out_records
-                manifest_records.append([record[ename_index], ofile, current_start,
+                manifest_records.append([record[ename_index], ofile, current_start_date,
                                          record[organization_index], current_eid, ''])
             zip_code = record[zip_index]
             if len(zip_code) == 4:
@@ -62,7 +62,7 @@ def mobilize_america_to_action_network(path):
             i += 1
 
         os.chdir('generated')
-
+        assert len(ofiles) == len(manifest_records)
         for fname, records in ofiles.items():
             assert not os.path.exists(fname), fname
             with open(Path(fname), 'w', newline='', encoding='utf-8') as ofile:
