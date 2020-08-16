@@ -49,7 +49,7 @@ def mobilize_america_to_action_network(path):
                 current_eid = record[eid_index]
                 current_start_date = record[start_index][:10]
                 out_records = []
-                ofile = sanitize_path('{}-{}-{}.csv'.format(current_start_date, record[ename_index][:20],
+                ofile = sanitize_path('{}-{}-{}.csv'.format(current_start_date, record[ename_index][:40],
                                       current_eid))
                 ofiles[ofile] = out_records
                 manifest_records.append([record[ename_index], ofile, current_start_date,
