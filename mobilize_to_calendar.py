@@ -176,6 +176,13 @@ def load_zip_geo_data():
             zip_geo_data['0' + record[0]] = (float(record[1]), float(record[2]))
 
 
+def find_index(items, key):
+    try:
+        return items.index(key)
+    except ValueError:
+        return -1
+
+
 def mobilize_to_calendar(path):
     records = []
     out_headers = ['Event Name',
@@ -196,12 +203,12 @@ def mobilize_to_calendar(path):
         reader = csv.reader(ifile)
         in_headers = next(reader)
         mobilize_url_index = in_headers.index('URL')
-        city_index = in_headers.index('City')
-        state_index = in_headers.index('State Code')
-        zip_index = in_headers.index('Zip')
-        visibility_index = in_headers.index('Visibility')
+        city_index = find_index(in_headers, 'City')
+        state_index = find_index(in_headers, 'State Code')
+        zip_index = find_index(in_headers, 'Zip')
+        visibility_index = find_index(in_headers, 'Visibility')
         for record in reader:
-            if record[visibility_index] != 'public':
+            if visibility_index >= 0 and record[visibility_index] == 'private':
                 continue
             event_url = record[mobilize_url_index]
             data = get_mobilize_data(event_url.split(sep='/')[-2])
@@ -211,18 +218,22 @@ def mobilize_to_calendar(path):
             if 'Maine' in event_organizers:
                 continue
             print(data['title'])
-            event_website = event_url.replace('swingleft', 'swingleftboston')
+            event_website = event_url.replace('/swingleft/', '/swingleftboston/')
             event_description = data['description'] + '\n\n<b><a href=' \
                                 + event_website + '>PLEASE SIGN UP HERE FOR THE EVENT</a></b>'
-            city = record[city_index]
-            state = record[state_index]
-            zip_code = record[zip_index]
-            if len(zip_code) == 4:
-                zip_code = '0' + zip_code
             location = data['location']
-            assert location['locality'] == city
-            assert location['region'] == state
-            assert location['postal_code'] == zip_code
+            city = location['locality']
+            state = location['region']
+            zip_code = location['postal_code']
+            if city_index >= 0:
+                assert city == record[city_index]
+            if state_index >= 0:
+                assert state == record[state_index]
+            if zip_index >= 0:
+                s_zip_code = record[zip_index]
+                if len(s_zip_code) == 4:
+                    s_zip_code = '0' + s_zip_code
+                assert zip_code == s_zip_code
             categories = []
             tags = []
             region = None
@@ -238,7 +249,7 @@ def mobilize_to_calendar(path):
             add_activity_categories(categories, data['description'])
             add_tags(tags, data['description'])
             if 'postcards-letters' in categories:
-                event_name = '{}, {} - {}'.format(city, state, data['title'])
+                event_name = '{}, {} - {}'.format(city.upper(), state, data['title'])
                 event_venue_name = '{}, {}'.format(city, state)
             else:
                 event_name = 'ONLINE - ' + data['title']
