@@ -1,6 +1,7 @@
 import csv
 import datetime
 import os
+import re
 import requests
 import sys
 import time
@@ -63,10 +64,17 @@ regions = [{'slug': 'metro-boston-events',
            ]
 
 
+# Matching will be case-sensitive iff a search term has an uppercase char
 event_tags = {"vote-by-mail": ["vote by mail", 'VBM', "vote-by-mail"],
               "joe-biden": [" biden", "biden "],
-              "voter-suppression": ["supression"],
-              "voter-protection": ["protectin"]
+              "voter-suppression": ["supression", "protecti", "watcher"],
+              "voter-registration": ["reclaim our vote", "ROV", "registration", "register vote"],
+              "gotv": ["get out the vote", "gotv"],
+              "state-races": ["Friel", "Shulman", "Knoll", "Rodas", "Branco", "Kassa", "Diaz", "Scott", "Williams",
+                              "Iovino", "Zrinski", "Sigman", "Bonfiglio", "Gonzalez", "Jackson", "Pulver",
+                              "Plotkin", "Steele", "Slomski"],
+              "senate-races": ["Cunningham", "Gideon", "Greenfield", "Hickenlooper", "Kelly", "Hegar", "Harrison",
+                               "Mcgrath", "Jones", "Peters", "Bullock"]
               }
 
 activities = {"canvassing": ["canvas"],
@@ -95,14 +103,14 @@ states = {"arizona-events": ["AZ", "Arizona"],
 def add_state_categories(category_list, text):
     state_list = []
     for category, strings in states.items():
-        for s in strings:
-            if s in text:
-                state_list.append(category)
-                break
+        pattern = '.*\\W{}\\W.*'.format(strings[0])
+        if re.match(pattern, text) or strings[1] in text:
+            state_list.append(category)
     if len(state_list) == 1:
         category_list.append(state_list[0])
     elif len(state_list) >=2:
         print("Multiple states:", state_list)
+        category_list.extend(state_list)
 
 
 def add_activity_categories(category_list, text):
@@ -119,10 +127,10 @@ def add_activity_categories(category_list, text):
 
 
 def add_tags(tag_list, text):
-    text = text.lower()
+    lc_text = text.lower()
     for tag, strings in event_tags.items():
         for s in strings:
-            if s in text:
+            if s in (lc_text if s.islower() else text):
                 tag_list.append(tag)
                 break
 
@@ -183,6 +191,71 @@ def find_index(items, key):
         return -1
 
 
+def get_tracking_event_type(categories):
+    if 'fundraiser' in categories:
+        return 'Fundraiser'
+    if 'postcards-letters' in categories:
+        return 'Postcard'
+    if 'phone-calls' in categories:
+        return 'Phone Bank'
+    if 'texting' in categories:
+        return 'Texting'
+    if 'training-briefings' in categories:
+        return 'Training'
+    return ''
+
+
+def get_tracking_event_subtype(tags):
+    if 'vote-by-mail' in tags:
+        return 'VBM'
+    if 'joe-biden' in tags:
+        return 'Biden'
+    if 'voter-suppression' in tags:
+        return 'ROV'
+    if 'voter-protection' in tags:
+        return 'VPP'
+    return ''
+
+
+def get_tracking_target_state(categories):
+    for slug in categories:
+        if slug in states:
+            return states[slug][0]
+    return ''
+
+
+def get_tracking_records(event_records):
+    headers = ['Status', 'Event Date', 'Host', 'Email', 'Group', 'Event Group', 'Followup', 'Event Type',
+               'Event Subtype', 'Target State',  'City/Town', 'State', 'Private', 'RSVP Link',
+               '', '', '', '', '', '', '', '', '', '', '', '',
+               'Group Override',]
+    tracking_records = []
+    for record in event_records:
+        tracking_record = []
+        tracking_record.append('Scheduled')
+        tracking_record.append(record[4])
+        tracking_record.append('')
+        tracking_record.append('')
+        tracking_record.append('')
+        tracking_record.append('')
+        tracking_record.append('')
+        categories = record[11].split(',')
+        tags = record[12].split(',')
+        tracking_record.append(get_tracking_event_type(categories))
+        tracking_record.append(get_tracking_event_subtype(tags))
+        tracking_record.append(get_tracking_target_state(categories))
+        tracking_record.append(record[9])
+        tracking_record.append(record[10])
+        tracking_record.append('')
+        tracking_record.append(record[8])
+        for i in range(12):
+            tracking_record.append('')
+            # O through Z
+        tracking_record.append(record[2])
+        tracking_records.append(tracking_record)
+    return headers, tracking_records
+
+
 def mobilize_to_calendar(path):
     records = []
     out_headers = ['Event Name',
@@ -197,18 +270,17 @@ def mobilize_to_calendar(path):
                    'City',
                    'State',
                    'Event Category',
-                   'Event Tags'
+                   'Event Tags',
+                   'Event Featured Image'
                    ]
     with open(path, newline='', encoding='utf-8') as ifile:
         reader = csv.reader(ifile)
         in_headers = next(reader)
         mobilize_url_index = in_headers.index('URL')
-        city_index = find_index(in_headers, 'City')
-        state_index = find_index(in_headers, 'State Code')
-        zip_index = find_index(in_headers, 'Zip')
-        visibility_index = find_index(in_headers, 'Visibility')
+        count_index = find_index(in_headers, 'N')
         for record in reader:
-            if visibility_index >= 0 and record[visibility_index] == 'private':
+            # Skip daily events
+            if count_index >= 0 and record[count_index][-1] == 'D':
                 continue
             event_url = record[mobilize_url_index]
             data = get_mobilize_data(event_url.split(sep='/')[-2])
@@ -218,22 +290,26 @@ def mobilize_to_calendar(path):
             if 'Maine' in event_organizers:
                 continue
             print(data['title'])
-            event_website = event_url.replace('/swingleft/', '/swingleftboston/')
-            event_description = data['description'] + '\n\n<b><a href=' \
-                                + event_website + '>PLEASE SIGN UP HERE FOR THE EVENT</a></b>'
+            event_description = data['description'] + '\n\n<b><a target=_blank href=' \
+                                + event_url + '>PLEASE SIGN UP HERE FOR THE EVENT</a></b>'
             location = data['location']
-            city = location['locality']
-            state = location['region']
-            zip_code = location['postal_code']
-            if city_index >= 0:
-                assert city == record[city_index]
-            if state_index >= 0:
-                assert state == record[state_index]
-            if zip_index >= 0:
-                s_zip_code = record[zip_index]
-                if len(s_zip_code) == 4:
-                    s_zip_code = '0' + s_zip_code
-                assert zip_code == s_zip_code
+            if location is not None:
+                city = location['locality']
+                state = location['region']
+                zip_code = location['postal_code']
+            else:
+                city = ""
+                state = ""
+                zip_code = ""
+            # if city_index >= 0:
+            #     assert city == record[city_index]
+            # if state_index >= 0:
+            #     assert state == record[state_index]
+            # if zip_index >= 0:
+            #     s_zip_code = record[zip_index]
+            #     if len(s_zip_code) == 4:
+            #         s_zip_code = '0' + s_zip_code
+            #     assert zip_code == s_zip_code
             categories = []
             tags = []
             region = None
@@ -245,17 +321,25 @@ def mobilize_to_calendar(path):
                 region = get_ma_region_by_zip(zip_code)
             if region is not None:
                 categories.append(region)
-            add_state_categories(categories, data['description'])
-            add_activity_categories(categories, data['description'])
-            add_tags(tags, data['description'])
+            text = data['title'] + ' ' + data['description']
+            add_state_categories(categories, text)
+            add_activity_categories(categories, text)
+            add_tags(tags, text)
             if 'postcards-letters' in categories:
-                event_name = '{}, {} - {}'.format(city.upper(), state, data['title'])
-                event_venue_name = '{}, {}'.format(city, state)
+                if city and state:
+                    event_name = '{}, {} - {}'.format(city.upper(), state, data['title'])
+                    event_venue_name = '{}, {}'.format(city, state)
+                else:
+                    event_name = data['title']
+                    event_venue_name = ''
             else:
                 event_name = 'ONLINE - ' + data['title']
                 event_venue_name = 'Online/Anywhere'
                 categories.append('location-online-anywhere')
+            now = int(datetime.datetime.now().timestamp())
             for time_slot in data['timeslots']:
+                if int(time_slot['start_date']) < now:
+                    continue
                 start = datetime.datetime.fromtimestamp(int(time_slot['start_date']))
                 end = datetime.datetime.fromtimestamp(int(time_slot['end_date']))
                 event_start_date = start.strftime("%Y-%m-%d")
@@ -263,11 +347,17 @@ def mobilize_to_calendar(path):
                 event_end_date = end.strftime("%Y-%m-%d")
                 event_end_time = end.strftime("%H:%M:00")
                 records.append([event_name, event_description, event_organizers, event_venue_name, event_start_date,
-                                event_start_time, event_end_date, event_end_time, event_website, city, state,
-                                ','.join(categories), ','.join(tags)])
+                                event_start_time, event_end_date, event_end_time, event_url, city, state,
+                                ','.join(categories), ','.join(tags), data.get('featured_image_url', '')])
 
     out_name = os.path.splitext(path)[0] + '-cal-import.csv'
     with open(out_name, mode='w', newline='', encoding='utf-8') as ofile:
+        writer = csv.writer(ofile)
+        writer.writerow(out_headers)
+        writer.writerows(records)
+    out_name = os.path.splitext(path)[0] + '-tracking.csv'
+    with open(out_name, mode='w', newline='', encoding='utf-8') as ofile:
+        out_headers, records = get_tracking_records(records)
         writer = csv.writer(ofile)
         writer.writerow(out_headers)
         writer.writerows(records)
