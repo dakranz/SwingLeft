@@ -39,7 +39,7 @@ def date_display(dt):
 def mobilize_event_feed(hours_ago):
     current_date = datetime.datetime.now().strftime("%Y-%m-%d %H;%M")
     events = get_events(hours_ago)
-    events.sort(key=operator.itemgetter('modified_date'), reverse=True)
+    events.sort(key=operator.itemgetter('created_date'), reverse=True)
     headers = ['Mod Date', 'Created Date', 'Title', 'City', 'State Code', 'Zip', 'Organization', 'Start Date', 'N', 'URL']
     records = []
     now = int(datetime.datetime.now().timestamp())
