@@ -122,8 +122,6 @@ def add_activity_categories(category_list, text):
                 category_list.append(category)
                 added = True
                 break
-    if not added or 'phone-calls' in category_list and 'training-briefings' not in category_list:
-        category_list.append('training-briefings')
 
 
 def add_tags(tag_list, text):
@@ -278,6 +276,7 @@ def mobilize_to_calendar(path):
         in_headers = next(reader)
         mobilize_url_index = in_headers.index('URL')
         count_index = find_index(in_headers, 'N')
+        first_time_index = find_index(in_headers, 'Timestamp')
         for record in reader:
             # Skip daily events
             if count_index >= 0 and record[count_index][-1] == 'D':
@@ -336,9 +335,11 @@ def mobilize_to_calendar(path):
                 event_name = 'ONLINE - ' + data['title']
                 event_venue_name = 'Online/Anywhere'
                 categories.append('location-online-anywhere')
-            now = int(datetime.datetime.now().timestamp())
+            first_time = int(datetime.datetime.now().timestamp())
+            if first_time_index >= 0:
+                first_time = int(record[first_time_index])
             for time_slot in data['timeslots']:
-                if int(time_slot['start_date']) < now:
+                if int(time_slot['start_date']) < first_time:
                     continue
                 start = datetime.datetime.fromtimestamp(int(time_slot['start_date']))
                 end = datetime.datetime.fromtimestamp(int(time_slot['end_date']))
