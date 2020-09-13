@@ -82,7 +82,8 @@ activities = {"canvassing": ["canvas"],
               "postcards-letters": ["letter", "postcard", "post card", "pick up", "pick up", "pick-up"],
               "texting": ["texting"],
               "fundraiser": ["fundrai"],
-              "training-briefings": ["training", "briefing"]
+              "training": ["training"],
+              "briefing": ["briefing"]
               }
 
 states = {"arizona-events": ["AZ", "Arizona"],
@@ -113,7 +114,7 @@ def add_state_categories(category_list, text):
         category_list.extend(state_list)
 
 
-def add_activity_categories(category_list, text):
+def add_activity_categories(category_list, text, title):
     text = text.lower()
     added = False
     for category, strings in activities.items():
@@ -122,6 +123,8 @@ def add_activity_categories(category_list, text):
                 category_list.append(category)
                 added = True
                 break
+    if 'phone-calls' in category_list and 'training' in category_list and 'training' not in title:
+        category_list.remove('training')
 
 
 def add_tags(tag_list, text):
@@ -322,7 +325,7 @@ def mobilize_to_calendar(path):
                 categories.append(region)
             text = data['title'] + ' ' + data['description']
             add_state_categories(categories, text)
-            add_activity_categories(categories, text)
+            add_activity_categories(categories, text, data['title'])
             add_tags(tags, text)
             if 'postcards-letters' in categories:
                 if city and state:
