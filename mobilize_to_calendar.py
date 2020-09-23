@@ -279,10 +279,10 @@ def mobilize_to_calendar(path):
         in_headers = next(reader)
         mobilize_url_index = in_headers.index('URL')
         count_index = find_index(in_headers, 'N')
-        first_time_index = find_index(in_headers, 'Timestamp')
+        new_times_index = find_index(in_headers, 'New Times')
         for record in reader:
             # Skip daily events
-            if count_index >= 0 and record[count_index][-1] == 'D':
+            if count_index >= 0 and (record[count_index][-1] == 'D' or record[count_index][0] != 'N'):
                 continue
             event_url = record[mobilize_url_index]
             data = get_mobilize_data(event_url.split(sep='/')[-2])
@@ -338,14 +338,17 @@ def mobilize_to_calendar(path):
                 event_name = 'ONLINE - ' + data['title']
                 event_venue_name = 'Online/Anywhere'
                 categories.append('location-online-anywhere')
-            first_time = int(datetime.datetime.now().timestamp())
-            if first_time_index >= 0:
-                first_time = int(record[first_time_index])
+            now = int(datetime.datetime.now().timestamp())
+            new_times = None
+            if new_times_index >= 0:
+                new_times = record[new_times_index].split(',')
             for time_slot in data['timeslots']:
-                if int(time_slot['start_date']) < first_time:
+                if time_slot['start_date'] < now:
                     continue
-                start = datetime.datetime.fromtimestamp(int(time_slot['start_date']))
-                end = datetime.datetime.fromtimestamp(int(time_slot['end_date']))
+                if new_times and (str(time_slot['start_date']) not in new_times):
+                    continue
+                start = datetime.datetime.fromtimestamp(time_slot['start_date'])
+                end = datetime.datetime.fromtimestamp(time_slot['end_date'])
                 event_start_date = start.strftime("%Y-%m-%d")
                 event_start_time = start.strftime("%H:%M:00")
                 event_end_date = end.strftime("%Y-%m-%d")

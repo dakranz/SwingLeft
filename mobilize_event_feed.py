@@ -43,6 +43,7 @@ def mobilize_event_feed(hours_ago):
     headers = ['Mod Date', 'Created Date', 'Title', 'City', 'State Code', 'Zip', 'Organization', 'Start Date', 'N', 'URL']
     records = []
     now = int(datetime.datetime.now().timestamp())
+    window_start = now - hours_ago * 3600
     for event in events:
         city = ''
         state = ''
@@ -54,7 +55,7 @@ def mobilize_event_feed(hours_ago):
             zipcode = event['location']['postal_code']
             if zipcode >= '08000':#'02800':
                 continue
-        if not (city or zipcode or sponsor in ['swingleftboston', 'togetherfor2020']):
+        if not (city or zipcode or sponsor in ['swingleftboston', 'togetherfor2020', 'swingleftnorthshore']):
             continue
         title = event['title']
         if title in skip_list and event['id'] == skip_list[title]:
@@ -72,6 +73,9 @@ def mobilize_event_feed(hours_ago):
             interval = timeslots[1]['start_date'] - timeslots[0]['start_date']
             if 23 * 3600 < interval < 25 * 3600 :
                 n = str(n) + 'D'
+        # Mark new events
+        if event['created_date'] >= window_start:
+            n = 'N' + str(n)
         start = datetime.datetime.fromtimestamp(timeslots[0]['start_date']).strftime('%m/%d')
         records.append([date_display(datetime.datetime.fromtimestamp(event['modified_date'])),
                         date_display(datetime.datetime.fromtimestamp(event['created_date'])),

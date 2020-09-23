@@ -6,3 +6,4 @@ api_key.py
 *.csv
 *.log
 *.txt
+*.json
