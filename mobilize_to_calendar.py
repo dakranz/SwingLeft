@@ -282,7 +282,7 @@ def mobilize_to_calendar(path):
         new_times_index = find_index(in_headers, 'New Times')
         for record in reader:
             # Skip daily events
-            if count_index >= 0 and (record[count_index][-1] == 'D' or record[count_index][0] != 'N'):
+            if count_index >= 0 and (record[count_index][-1] == 'D' or record[count_index][0] not in ['N', 'R']):
                 continue
             event_url = record[mobilize_url_index]
             data = get_mobilize_data(event_url.split(sep='/')[-2])

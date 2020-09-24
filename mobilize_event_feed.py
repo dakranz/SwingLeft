@@ -15,9 +15,8 @@ api_header = {'Content-Type': 'application/json'}
 skip_list = {'Maine Voter Protection': 294182}
 
 
-def get_events(hours_ago):
+def get_events(since):
     events = []
-    since = int(datetime.datetime.now().timestamp() - hours_ago * 60 * 60)
     url = '{}organizations/1535/events?per_page=100&updated_since={}&timeslot_start=gt_now'.format(entry_point, since)
     while True:
         r = requests.get(url, headers=api_header)
@@ -37,13 +36,14 @@ def date_display(dt):
 
 
 def mobilize_event_feed(hours_ago):
+    now = int(datetime.datetime.now().timestamp())
+    window_start = now - hours_ago * 3600
+    real_start = window_start - 12 * 3600
     current_date = datetime.datetime.now().strftime("%Y-%m-%d %H;%M")
-    events = get_events(hours_ago)
+    events = get_events(real_start)
     events.sort(key=operator.itemgetter('created_date'), reverse=True)
     headers = ['Mod Date', 'Created Date', 'Title', 'City', 'State Code', 'Zip', 'Organization', 'Start Date', 'N', 'URL']
     records = []
-    now = int(datetime.datetime.now().timestamp())
-    window_start = now - hours_ago * 3600
     for event in events:
         city = ''
         state = ''
@@ -76,6 +76,8 @@ def mobilize_event_feed(hours_ago):
         # Mark new events
         if event['created_date'] >= window_start:
             n = 'N' + str(n)
+        elif event['created_date'] >= real_start:
+            n = 'R' + str(n)
         start = datetime.datetime.fromtimestamp(timeslots[0]['start_date']).strftime('%m/%d')
         records.append([date_display(datetime.datetime.fromtimestamp(event['modified_date'])),
                         date_display(datetime.datetime.fromtimestamp(event['created_date'])),

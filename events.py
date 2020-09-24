@@ -61,11 +61,18 @@ def get_calendar_events():
     return events
 
 
-def dump_events(fname):
+def dump_events(fname, raw=False):
+    m_events = get_mobilize_events()
+    c_events = get_calendar_events()
     with open(fname + '-mobilize.json', 'w', encoding='utf-8') as f:
-        json.dump(get_mobilize_events(), f, ensure_ascii=False, indent=4)
+        json.dump(m_events, f, ensure_ascii=False, indent=4)
     with open(fname + '-calendar.json', 'w', encoding='utf-8') as f:
-        json.dump(get_calendar_events(), f, ensure_ascii=False, indent=4)
+        json.dump(c_events, f, ensure_ascii=False, indent=4)
+    if raw:
+        with open('raw-' + fname + '-mobilize.json', 'w', encoding='utf-8') as f:
+            json.dump(m_events, f, ensure_ascii=False, indent=4)
+        with open('raw-' + fname + '-calendar.json', 'w', encoding='utf-8') as f:
+            json.dump(c_events, f, ensure_ascii=False, indent=4)
 
 
 def load_mobilize_events(fname):
@@ -79,4 +86,4 @@ def load_calendar_events(fname):
 
 
 if __name__ == "__main__":
-    dump_events('event-data')
+    dump_events('event-data', raw=True)
