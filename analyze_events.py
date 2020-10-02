@@ -92,8 +92,11 @@ def print_dups():
 
 def print_missing_calendar_events():
     event_map = get_event_map()
+    now = int(datetime.datetime.now().timestamp())
     print('Mobilize events not in calendar:')
     for event in mobilize_events:
+        if all([slot['start_date'] < now for slot in event['timeslots']]):
+            continue
         event_id = get_event_id(event['browser_url'])
         if event_id not in event_map:
             print(event['browser_url'], datetime.datetime.fromtimestamp(event['created_date']).strftime('%c'))
@@ -117,7 +120,7 @@ def dump_new_time_slots():
         timeslots = m_event['timeslots']
         if len(timeslots) > 5:
             interval = timeslots[1]['start_date'] - timeslots[0]['start_date']
-            if 23 * 3600 < interval < 25 * 3600 :
+            if 23 * 3600 < interval < 25 * 3600:
                 continue
         if len(c_events) < len(timeslots):
             print(browser_url)

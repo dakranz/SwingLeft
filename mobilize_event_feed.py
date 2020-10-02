@@ -38,7 +38,7 @@ def date_display(dt):
 def mobilize_event_feed(hours_ago):
     now = int(datetime.datetime.now().timestamp())
     window_start = now - hours_ago * 3600
-    real_start = window_start - 12 * 3600
+    real_start = window_start - 8 * 3600
     current_date = datetime.datetime.now().strftime("%Y-%m-%d %H;%M")
     events = get_events(real_start)
     events.sort(key=operator.itemgetter('created_date'), reverse=True)
@@ -55,7 +55,8 @@ def mobilize_event_feed(hours_ago):
             zipcode = event['location']['postal_code']
             if zipcode >= '08000':#'02800':
                 continue
-        if not (city or zipcode or sponsor in ['swingleftboston', 'togetherfor2020', 'swingleftnorthshore']):
+        if not (city or zipcode or sponsor in ['swingleftboston', 'togetherfor2020', 'swingleftnorthshore',
+                                               'indivisiblenorthampton', 'indivisiblegreaterandover']):
             continue
         title = event['title']
         if title in skip_list and event['id'] == skip_list[title]:

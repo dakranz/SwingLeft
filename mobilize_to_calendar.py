@@ -150,7 +150,10 @@ def get_ma_region(latitude, longitude):
     return None
 
 
-def get_ma_region_by_location(location):
+def get_ma_region_by_location(location, city):
+    if city == "Falmouth":
+        # Falmouth defies a broad rectangular cape region, too far West
+        return 'cape-cod-events'
     latitude = float(location['latitude'])
     longitude = float(location['longitude'])
     return get_ma_region(latitude, longitude)
@@ -318,7 +321,7 @@ def mobilize_to_calendar(path):
             if state in state_categories:
                 region = state_categories[state]
             elif state == 'MA' and 'location' in data['location']:
-                region = get_ma_region_by_location(data['location']['location'])
+                region = get_ma_region_by_location(data['location']['location'], city)
             elif state == 'MA':
                 region = get_ma_region_by_zip(zip_code)
             if region is not None:
