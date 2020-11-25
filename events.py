@@ -20,8 +20,9 @@ def filter_event(event):
         zipcode = event['location']['postal_code']
         if zipcode >= '08000':  # '02800':
             return None
-    if not (city or zipcode or sponsor in ['swingleftboston', 'togetherfor2020', 'swingleftnorthshore'
-                                           'indivisiblenorthampton', 'indivisiblegreaterandover']):
+    if not (city or zipcode or sponsor in ['swingleftboston', 'togetherfor2020', 'swingleftnorthshore',
+                                           'indivisiblenorthampton', 'indivisiblegreaterandover',
+                                           'indivisibleacton-area']):
         return None
     title = event['title']
     if title in skip_list and event['id'] == skip_list[title]:

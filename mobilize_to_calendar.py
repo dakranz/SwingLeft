@@ -346,7 +346,7 @@ def mobilize_to_calendar(path):
             if new_times_index >= 0:
                 new_times = record[new_times_index].split(',')
             for time_slot in data['timeslots']:
-                if time_slot['start_date'] < now:
+                if time_slot['start_date'] < now or time_slot['is_full']:
                     continue
                 if new_times and (str(time_slot['start_date']) not in new_times):
                     continue

@@ -56,7 +56,8 @@ def mobilize_event_feed(hours_ago):
             if zipcode >= '08000':#'02800':
                 continue
         if not (city or zipcode or sponsor in ['swingleftboston', 'togetherfor2020', 'swingleftnorthshore',
-                                               'indivisiblenorthampton', 'indivisiblegreaterandover']):
+                                               'indivisiblenorthampton', 'indivisiblegreaterandover',
+                                               'indivisibleacton-area']):
             continue
         title = event['title']
         if title in skip_list and event['id'] == skip_list[title]:

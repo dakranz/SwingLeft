@@ -56,40 +56,6 @@ def get_event_map():
     return event_map
 
 
-def print_dups():
-    dups = {}
-    for event in calendar_events:
-        eid = None
-        for text in [event['website'], event['description']]:
-            m = re.match(r'.*(mobilize.us/\w+/event)/(\d+)', text)
-            if m is not None:
-                eid = m.groups()[1]
-                break
-        if eid is None:
-            continue
-        start = event['start_date']
-        if (eid, start) not in dups:
-            dups[(eid, start)] = [{'title': event['title'], 'url': event['url']}]
-        else:
-            dups[(eid, start)].append({'title': event['title'], 'url': event['url']})
-
-    titles = set()
-    for (id, start), v in dups.items():
-        if len(v) > 1:
-            done_already = False
-            for e in v:
-                if e['title'] in titles:
-                    done_already = True
-            if done_already:
-                continue
-            print(id, start)
-            for e in v:
-                titles.add(e['title'])
-                print(e['title'])
-                print(e['url'])
-            print('\n')
-
-
 def print_missing_calendar_events():
     event_map = get_event_map()
     now = int(datetime.datetime.now().timestamp())
@@ -101,6 +67,10 @@ def print_missing_calendar_events():
         if event_id not in event_map:
             print(event['browser_url'], datetime.datetime.fromtimestamp(event['created_date']).strftime('%c'))
             print(event['title'], '\n')
+            for slot in event['timeslots']:
+                if slot['start_date'] > now:
+                    print(datetime.datetime.fromtimestamp(slot['start_date']).strftime('%Y-%m-%d %H:%M:%S'))
+            print('\n')
 
 
 def dump_new_time_slots():
@@ -111,12 +81,14 @@ def dump_new_time_slots():
     for m_event in mobilize_events:
         browser_url = m_event['browser_url']
         m_id = get_event_id(browser_url)
-        if m_id not in event_map:
+        if m_id in ['329148', '220981', '295218', '295224', '295226', '301337', '349969', '345286', '302734',
+                    '337910', '345743']:
+            # Events to be excluded from calendar.
             continue
-        if m_id == '329148':
-            # This is a 6 day a week event with one calendar entry
-            continue
-        c_events = event_map[m_id]
+        elif m_id not in event_map:
+            c_events = []
+        else:
+            c_events = event_map[m_id]
         timeslots = m_event['timeslots']
         if len(timeslots) > 5:
             interval = timeslots[1]['start_date'] - timeslots[0]['start_date']
@@ -139,6 +111,14 @@ def dump_new_time_slots():
             if c_events:
                 print(c_events[0]['url'])
             print('\n')
+        # t_event_set = set()
+        # for s in timeslots:
+        #     slot = s['start_date']
+        #     time = datetime.datetime.fromtimestamp(slot).strftime('%Y-%m-%d %H:%M:%S')
+        #     t_event_set.add(time)
+        # for e in c_events:
+        #     if e['start_date'] not in t_event_set:
+        #         print('Delete: ', e['url'])
     out_name = 'new-time-slots-{}.csv'.format(current_date)
     with open(out_name, mode='w', newline='', encoding='utf-8') as ofile:
         writer = csv.writer(ofile)
@@ -146,5 +126,4 @@ def dump_new_time_slots():
         writer.writerows(records)
 
 
-#print_missing_calendar_events()
 dump_new_time_slots()
