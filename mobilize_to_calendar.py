@@ -101,9 +101,16 @@ states = {"arizona-events": ["AZ", "Arizona"],
           }
 
 
+volunteer_led_orgs = ["swingleftboston", "indivisibleacton-area", "indivisiblegreaterandover",
+                      "wmatakebackourdemocracy", "swingleftri", "swingleftnorthshore"]
+
+
 def add_state_categories(category_list, text):
     state_list = []
     for category, strings in states.items():
+        # only doing GA for now
+        if category != 'georgia-events':
+            continue
         pattern = '.*\\W{}\\W.*'.format(strings[0])
         if re.match(pattern, text) or strings[1] in text:
             state_list.append(category)
@@ -228,40 +235,32 @@ def get_tracking_target_state(categories):
     return ''
 
 
-def get_tracking_records(event_records):
-    headers = ['Status', 'Event Date', 'Host', 'Email', 'Group', 'Event Group', 'Followup', 'Event Type',
-               'Event Subtype', 'Target State',  'City/Town', 'State', 'Private', 'RSVP Link',
-               '', '', '', '', '', '', '', '', '', '', '', '',
-               'Group Override',]
-    tracking_records = []
-    for record in event_records:
-        tracking_record = []
-        tracking_record.append('Scheduled')
-        tracking_record.append(record[4])
+tracking_headers = ['Status', 'Event Date', 'Host', 'Email', 'Group', 'Event Group', 'Followup', 'Event Type',
+                    'Event Subtype', 'Target State',  'City/Town', 'State', 'Private', 'RSVP Link',
+                    '', '', '', '', '', '', '', '', '', '', '', '', 'Group Override',]
+
+
+def get_tracking_record(event_record):
+    tracking_record = ['Scheduled', event_record[4], '', '', '', '', '']
+    categories = event_record[11].split(',')
+    tags = event_record[12].split(',')
+    tracking_record.append(get_tracking_event_type(categories))
+    tracking_record.append(get_tracking_event_subtype(tags))
+    tracking_record.append(get_tracking_target_state(categories))
+    tracking_record.append(event_record[9])
+    tracking_record.append(event_record[10])
+    tracking_record.append('')
+    tracking_record.append(event_record[8])
+    for i in range(12):
         tracking_record.append('')
-        tracking_record.append('')
-        tracking_record.append('')
-        tracking_record.append('')
-        tracking_record.append('')
-        categories = record[11].split(',')
-        tags = record[12].split(',')
-        tracking_record.append(get_tracking_event_type(categories))
-        tracking_record.append(get_tracking_event_subtype(tags))
-        tracking_record.append(get_tracking_target_state(categories))
-        tracking_record.append(record[9])
-        tracking_record.append(record[10])
-        tracking_record.append('')
-        tracking_record.append(record[8])
-        for i in range(12):
-            tracking_record.append('')
-            # O through Z
-        tracking_record.append(record[2])
-        tracking_records.append(tracking_record)
-    return headers, tracking_records
+        # O through Z
+    tracking_record.append(event_record[2])
+    return tracking_record
 
 
 def mobilize_to_calendar(path):
     records = []
+    tracking_records = []
     out_headers = ['Event Name',
                    'Event Description',
                    'Event Organizers',
@@ -329,6 +328,8 @@ def mobilize_to_calendar(path):
             text = data['title'] + ' ' + data['description']
             add_state_categories(categories, text)
             add_activity_categories(categories, text, data['title'])
+            if data['sponsor']['slug'] in volunteer_led_orgs:
+                categories.append('volunteer-events')
             add_tags(tags, text)
             if 'postcards-letters' in categories:
                 if city and state:
@@ -346,7 +347,7 @@ def mobilize_to_calendar(path):
             if new_times_index >= 0:
                 new_times = record[new_times_index].split(',')
             for time_slot in data['timeslots']:
-                if time_slot['start_date'] < now or time_slot['is_full']:
+                if time_slot['start_date'] < now:
                     continue
                 if new_times and (str(time_slot['start_date']) not in new_times):
                     continue
@@ -356,9 +357,12 @@ def mobilize_to_calendar(path):
                 event_start_time = start.strftime("%H:%M:00")
                 event_end_date = end.strftime("%Y-%m-%d")
                 event_end_time = end.strftime("%H:%M:00")
-                records.append([event_name, event_description, event_organizers, event_venue_name, event_start_date,
+                event_record = [event_name, event_description, event_organizers, event_venue_name, event_start_date,
                                 event_start_time, event_end_date, event_end_time, event_url, city, state,
-                                ','.join(categories), ','.join(tags), data.get('featured_image_url', '')])
+                                ','.join(categories), ','.join(tags), data.get('featured_image_url', '')]
+                if not time_slot['is_full']:
+                    records.append(event_record)
+                tracking_records.append(get_tracking_record(event_record))
 
     out_name = os.path.splitext(path)[0] + '-cal-import.csv'
     with open(out_name, mode='w', newline='', encoding='utf-8') as ofile:
@@ -367,10 +371,9 @@ def mobilize_to_calendar(path):
         writer.writerows(records)
     out_name = os.path.splitext(path)[0] + '-tracking.csv'
     with open(out_name, mode='w', newline='', encoding='utf-8') as ofile:
-        out_headers, records = get_tracking_records(records)
         writer = csv.writer(ofile)
-        writer.writerow(out_headers)
-        writer.writerows(records)
+        writer.writerow(tracking_headers)
+        writer.writerows(tracking_records)
 
 
 def get_mobilize_data(id):
