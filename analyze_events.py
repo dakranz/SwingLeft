@@ -3,9 +3,6 @@ import datetime
 import events
 import re
 
-events.dump_events('event-data')
-mobilize_events = events.load_mobilize_events('event-data-mobilize.json')
-calendar_events = events.load_calendar_events('event-data-calendar.json')
 # missing = set()
 # for event in c_events:
 #     if not event['image']:
@@ -29,41 +26,14 @@ calendar_events = events.load_calendar_events('event-data-calendar.json')
 #     print(v)
 
 
-def get_event_id(url):
-    data = url.split(sep='/')
-    if data[-1] == '':
-        return data[-2]
-    else:
-        return data[-1]
-
-
-def get_event_map():
-    event_map = {}
-    for event in calendar_events:
-        mobilize_url = None
-        for text in [event['website'], event['description']]:
-            m = re.findall(r'(https://www.mobilize.us/[\w-]+/event/\d+/).*', text)
-            if len(m) > 0 and all(element == m[0] for element in m):
-                mobilize_url = m[0]
-                break
-        if mobilize_url is None:
-            continue
-        event_id = get_event_id(mobilize_url)
-        if event_id in event_map:
-            event_map[event_id].append(event)
-        else:
-            event_map[event_id] = [event]
-    return event_map
-
-
 def print_missing_calendar_events():
-    event_map = get_event_map()
+    event_map = events.get_event_map()
     now = int(datetime.datetime.now().timestamp())
     print('Mobilize events not in calendar:')
-    for event in mobilize_events:
+    for event in events.get_mobilize_events():
         if all([slot['start_date'] < now for slot in event['timeslots']]):
             continue
-        event_id = get_event_id(event['browser_url'])
+        event_id = events.get_event_id(event['browser_url'])
         if event_id not in event_map:
             print(event['browser_url'], datetime.datetime.fromtimestamp(event['created_date']).strftime('%c'))
             print(event['title'], '\n')
@@ -75,12 +45,13 @@ def print_missing_calendar_events():
 
 def dump_new_time_slots():
     current_date = datetime.datetime.now().strftime("%Y-%m-%d %H;%M")
-    event_map = get_event_map()
+    event_map = events.get_event_map()
+    mobilize_events = events.get_mobilize_events()
     headers = ['Title', 'URL', 'New Times']
     records = []
     for m_event in mobilize_events:
         browser_url = m_event['browser_url']
-        m_id = get_event_id(browser_url)
+        m_id = events.get_event_id(browser_url)
         if m_id in ['329148', '220981', '295218', '295224', '295226', '301337', '349969', '345286', '302734',
                     '337910', '345743']:
             # Events to be excluded from calendar.

@@ -1,0 +1,6 @@
+# Python 3.6.9 or greater
+
+markdown
+python-dateutil
+requests
+slack-sdk

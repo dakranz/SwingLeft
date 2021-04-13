@@ -1,0 +1,3 @@
+action_network_key = '<key>'
+slack_news_magic_key = '<key>'
+wordpress_app_password = '<username>:<app password>'

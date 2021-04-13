@@ -2,7 +2,7 @@ import api_key
 import requests
 
 entry_point = 'https://actionnetwork.org/api/v2/'
-api_header = {'Content-Type': 'application/json', 'OSDI-API-Token': api_key.key}
+api_header = {'Content-Type': 'application/json', 'OSDI-API-Token': api_key.action_network_key}
 
 
 def add_person(data):
