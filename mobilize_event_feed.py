@@ -17,6 +17,8 @@ parser.add_argument("-t", "--timestamp", action="store_true",
                     help="Use value in mobilize-timestamp.txt as oldest event to process")
 parser.add_argument("-d", "--debug", action="store_true",
                     help="Log debug info.")
+parser.add_argument("-u", "--update_timestamp", action="store_true",
+                    help="Update mobilize-timestamp.txt to current time.")
 args = parser.parse_args()
 
 entry_point = 'https://api.mobilize.us/v1/'
@@ -78,6 +80,7 @@ def main():
         print('Must specify exactly one of -t or --hours or --url')
         exit(1)
     now = int(datetime.datetime.now().timestamp())
+    update_timestamp = args.timestamp or args.update_timestamp
     if args.hours:
         mobilize_event_feed(now - args.hours * 3600)
     elif args.timestamp:
@@ -90,8 +93,9 @@ def main():
     elif args.url:
         process_event_feed([get_mobilize_event(url) for url in args.url])
         return
-    with open('mobilize-timestamp.txt', 'w') as f:
-        f.write(str(now))
+    if update_timestamp:
+        with open('mobilize-timestamp.txt', 'w') as f:
+            f.write(str(now))
 
 
 main()

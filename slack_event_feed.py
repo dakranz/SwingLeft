@@ -17,9 +17,11 @@ _parser.add_argument("-t", "--timestamp", action="store_true",
                     help="Use value in slack-timestamp.txt as oldest event to process")
 _parser.add_argument("-d", "--debug", action="store_true",
                     help="Log debug info.")
+_parser.add_argument("-u", "--update_timestamp", action="store_true",
+                    help="Update slack-timestamp.txt to current time.")
 args = _parser.parse_args()
 
-months = {'jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'}
+months = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec']
 
 
 def get_time_str(info, am_pm):
@@ -37,10 +39,12 @@ def validate_year(dt, year):
 
 
 # We have specified that a datetime string in a message must contain the month, date, start-time, end-time, am/pm
-# basically in that order. The year is optional as is an am/pm for the start-time. The calendar requires an end time
-# so we assume an hour if no range is specified.
+# basically in that order and it does not matter what other stuff is in between each of them as long as the numbers
+# can be parsed out. The year is optional as is an am/pm for the start-time (but at least one am/pm is required).
+# The calendar requires an end time
+# so we assume an hour if no range is specified. The month can be as in 'January 6' or /1/6'.
 def get_date_range(s):
-    s = s.lower()
+    s = s.strip().lower()
     month = None
     day = None
     start_time = end_time = None
@@ -48,6 +52,13 @@ def get_date_range(s):
         if m in s:
             month = m
             break
+    if month is None:
+        month_part = re.match(r'(\d+)/', s)
+        if month_part is None:
+            return None, None
+        month_num = month_part[0][0]
+        month = months[int(month_num) - 1]
+        s = s.replace(month_num, '', 1)
     y = re.findall(r'(\d\d\d\d)', s)
     if len(y) > 0:
         year = y[0]
@@ -127,6 +138,8 @@ def slack_event_feed(start):
             continue
         assert len(attachments) == 1
         description = attachments[0]['text']
+        if 'mobilize.us' in description:
+            continue
         header_block = message['text'].splitlines()
         pprint(header_block)
         organizer = ''
@@ -174,6 +187,7 @@ def main():
         print('Must specify exactly one of -t or --hours')
         exit(1)
     now = int(datetime.datetime.now().timestamp())
+    update_stamp = args.timestamp or args.update_timestamp
     if args.hours:
         slack_event_feed(now - args.hours * 3600)
     elif args.timestamp:
@@ -183,8 +197,9 @@ def main():
             except FileNotFoundError:
                 print('No timestamp file')
                 exit(1)
-    with open('slack-timestamp.txt', 'w') as f:
-        f.write(str(now))
+    if update_stamp:
+        with open('slack-timestamp.txt', 'w') as f:
+            f.write(str(now))
 
 
 main()

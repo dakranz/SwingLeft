@@ -3,10 +3,11 @@ import json
 import requests
 import urllib.parse
 
+import api_key
+
 use_saved_data = False
 
-calendar_api_base_url = 'https://s1swingleftbos.wpengine.com/wp-json/tribe/events/v1/'
-#calendar_api_base_url = 'https://swingleftboston.org/wp-json/tribe/events/v1/'
+calendar_api_base_url = 'https://' + api_key.wordpress_host_name + '/wp-json/tribe/events/v1/'
 calendar_headers = {'User-Agent': 'Foo bar'}
 
 skip_list = {}

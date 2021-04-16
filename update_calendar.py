@@ -33,7 +33,7 @@ if args.use_cached_data:
 
 auth_header = {'Authorization': 'Basic ' + base64.standard_b64encode(api_key.wordpress_app_password.encode()).decode(),
                'User-Agent': 'Foo bar'}
-base_url = 'https://s1swingleftbos.wpengine.com/wp-json/tribe/events/v1/events'
+base_url = 'https://' + api_key.wordpress_host_name + '/wp-json/tribe/events/v1/events'
 
 
 def update_event(event_id, json):
