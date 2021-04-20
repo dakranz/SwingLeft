@@ -2,7 +2,6 @@ import argparse
 import base64
 import csv
 import logging
-import logging.config
 import requests
 from pprint import pformat
 
@@ -19,14 +18,11 @@ parser.add_argument("-d", "--debug", action="store_true",
                     help="Log debug info.")
 args = parser.parse_args()
 
-logging.basicConfig(
-    level=logging.DEBUG if args.debug else logging.INFO,
-    handlers=[
-        logging.FileHandler("debug.log", mode='w'),
-        logging.StreamHandler()
-    ]
-)
-logging.config.dictConfig({'version': 1, 'disable_existing_loggers': True})
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG if args.debug else logging.INFO)
+sh = logging.StreamHandler()
+sh.setFormatter(logging.Formatter('%(levelname)s - %(message)s'))
+logger.addHandler(sh)
 
 if args.use_cached_data:
     events.use_saved_data = True
@@ -141,10 +137,10 @@ def update_calendar(path):
             event = get_existing_event(event_map, post_data)
             if event is not None:
                 post_data['id'] = event['id']
-                logging.info("Updating %s: %s", event['id'], event['rest_url'])
+                logger.info("Updating %s: %s", event['id'], event['rest_url'])
             else:
-                logging.info("Creating: %s %s %s", post_data['start_date'], post_data['title'], post_data['website'])
-            logging.debug("post data: %s", pformat(post_data))
+                logger.info("Creating: %s %s %s", post_data['start_date'], post_data['title'], post_data['website'])
+            logger.debug("post data: %s", pformat(post_data))
             if args.dry_run:
                 continue
             if event is None:
@@ -152,11 +148,11 @@ def update_calendar(path):
             else:
                 r = update_event(event['id'], post_data)
             if not r.ok:
-                logging.error(r.text)
+                logger.error(r.text)
                 continue
             returned_data = r.json()
-            logging.info("Returned: %s %s", returned_data['id'], returned_data['url'])
-            logging.debug(pformat(returned_data))
+            logger.info("Returned: %s %s", returned_data['id'], returned_data['url'])
+            logger.debug(pformat(returned_data))
 
 
 update_calendar(args.csv_file)

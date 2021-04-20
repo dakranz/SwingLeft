@@ -56,7 +56,7 @@ def mobilize_event_feed(start):
 
 
 def process_event_feed(event_list):
-    current_date = datetime.datetime.now().strftime("%Y-%m-%d %H;%M")
+    current_date = datetime.datetime.now().strftime("%Y-%m-%d %H;%M;%S")
     event_list.sort(key=operator.itemgetter('created_date'), reverse=True)
     records = []
     for event in event_list:

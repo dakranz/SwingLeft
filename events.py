@@ -70,7 +70,10 @@ def get_calendar_events():
     return events
 
 
-calendar_metadata_names = ['categories', 'tags', 'venues', 'organizers']
+calendar_metadata_names = {'categories': '?per_page=50&hide_empty=0',
+                           'tags': '?per_page=50&hide_empty=0',
+                           'venues': '?per_page=50',
+                           'organizers': '?per_page=50'}
 
 
 def get_calendar_metadata():
@@ -78,7 +81,7 @@ def get_calendar_metadata():
         return load_calendar_metadata()
     metadata = {}
     for kind in calendar_metadata_names:
-        url = calendar_api_base_url + kind + '?per_page=50'
+        url = calendar_api_base_url + kind + calendar_metadata_names[kind]
         data = []
         while True:
             print(url)

@@ -3,8 +3,9 @@ import csv
 import datetime
 from dateutil import parser
 import io
+import logging
 import markdown
-from pprint import pprint
+from pprint import pformat
 import re
 
 import the_events_calendar
@@ -21,6 +22,12 @@ _parser.add_argument("-u", "--update_timestamp", action="store_true",
                     help="Update slack-timestamp.txt to current time.")
 args = _parser.parse_args()
 
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG if args.debug else logging.INFO)
+sh = logging.StreamHandler()
+sh.setFormatter(logging.Formatter('%(levelname)s - %(message)s'))
+logger.addHandler(sh)
+
 months = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec']
 
 
@@ -31,9 +38,9 @@ def get_time_str(info, am_pm):
 
 
 # We are using the date parser which defaults to the current year if none is specified. That is wrong if the month is
-# one that has already passed.
+# one that has already passed. Only up the year at six month boundary in case we pick up an older event for some reason.
 def validate_year(dt, year):
-    if not year and datetime.datetime.now() > dt:
+    if not year and datetime.datetime.now() - datetime.timedelta(weeks=26) > dt:
         dt = dt.replace(dt.year + 1)
     return dt
 
@@ -132,49 +139,56 @@ def slack_event_feed(start):
     messages = slack.get_messages('1-upcoming-events-for-the-next-month', start)
     records = []
     for message in messages:
-        print('****************************')
+        logger.info('****************************')
+        logger.debug(pformat(message))
         attachments = message.get('attachments', None)
         if attachments is None:
             continue
-        assert len(attachments) == 1
-        description = attachments[0]['text']
+        description = '\n\n'.join([a['text'] for a in attachments])
         if 'mobilize.us' in description:
             continue
         header_block = message['text'].splitlines()
-        pprint(header_block)
+        logger.info(pformat(header_block))
         organizer = ''
         ts = datetime.datetime.fromtimestamp(float(message['ts'])).strftime('%c')
         if len(header_block) < 2:
-            print("Event header must have time and date ts=", ts)
+            logger.warning("Event header must have time and date ts=%s", ts)
             continue
         title = remove_markdown(header_block[0])
         start_dt, end_dt = get_date_range(header_block[1])
         if start_dt is None:
-            print("No date found for ts=", ts, header_block[1])
+            logger.warning("No date found for ts=%s %s", ts, header_block[1])
             continue
         event_start_date = start_dt.strftime("%Y-%m-%d")
         event_start_time = start_dt.strftime("%H:%M:00")
         event_end_date = end_dt.strftime("%Y-%m-%d")
         event_end_time = end_dt.strftime("%H:%M:00")
-        if len(header_block) > 2:
-            organizer = remove_markdown(header_block[2])
-            index = organizer.find('Group:')
-            if index >= 0:
-                organizer = organizer[index + 6:]
         text = title + ' ' + description
         categories = []
         tags = []
         the_events_calendar.add_state_categories(categories, text)
         the_events_calendar.add_activity_categories(categories, text, title)
-        the_events_calendar.add_tags(tags, text)
+        for attachment in attachments:
+            if 'channel_name' in attachment:
+                tags.append(attachment['channel_name'])
+        for line in header_block[2:]:
+            m = re.match(r'(\w*)\s*:(.*)', line.strip())
+            if m is None:
+                continue
+            key = m[1].lower()
+            value = m[2].strip()
+            if key == 'group':
+                organizer = value
+            elif key == 'rsvp':
+                description += ('\n\n' + value)
         description = convert_description(description)
         event_record = ['NEWSMAGIC ' + title, description, organizer, 'Online/Anywhere', event_start_date,
                         event_start_time, event_end_date, event_end_time, '', '', '',
                         ','.join(categories), ','.join(tags), '']
         records.append(event_record)
-        print(title)
-        print(event_start_date, event_start_time, event_end_date, event_end_time)
-    out_name = '{}-cal-import.csv'.format(datetime.datetime.now().strftime("%Y-%m-%d %H;%M"))
+        logger.info(title)
+        logger.info("start: %s %s end: %s %s", event_start_date, event_start_time, event_end_date, event_end_time)
+    out_name = '{}-cal-import.csv'.format(datetime.datetime.now().strftime("%Y-%m-%d %H;%M;%S"))
     with open(out_name, mode='w', newline='', encoding='utf-8') as ofile:
         writer = csv.writer(ofile)
         writer.writerow(the_events_calendar.calendar_import_headers)
@@ -203,3 +217,4 @@ def main():
 
 
 main()
+

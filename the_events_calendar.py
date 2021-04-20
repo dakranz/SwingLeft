@@ -22,7 +22,7 @@ event_tags = {"vote-by-mail": ["vote by mail", 'VBM', "vote-by-mail"],
 activities = {"canvassing": ["canvas"],
               "phone-calls": ["phone"],
               "postcards-letters": ["letter", "postcard", "post card", "pick up", "pick up", "pick-up"],
-              "texting": ["texting"],
+              "texting": ["texting", "text bank"],
               "fundraiser": ["fundrai"],
               "training": ["training"],
               "briefing": ["briefing"]
