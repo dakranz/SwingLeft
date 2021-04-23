@@ -7,6 +7,7 @@ import logging
 import markdown
 from pprint import pformat
 import re
+import shutil
 
 import the_events_calendar
 import slack
@@ -138,6 +139,7 @@ def convert_description(description):
 def slack_event_feed(start):
     messages = slack.get_messages('1-upcoming-events-for-the-next-month', start)
     records = []
+    now = datetime.datetime.now()
     for message in messages:
         logger.info('****************************')
         logger.debug(pformat(message))
@@ -145,10 +147,11 @@ def slack_event_feed(start):
         if attachments is None:
             continue
         description = '\n\n'.join([a['text'] for a in attachments])
-        if 'mobilize.us' in description:
-            continue
         header_block = message['text'].splitlines()
         logger.info(pformat(header_block))
+        if 'mobilize.us/swingleftbos' in description:
+            logger.info('Ignoring message with swing left boston mobilize event')
+            continue
         organizer = ''
         ts = datetime.datetime.fromtimestamp(float(message['ts'])).strftime('%c')
         if len(header_block) < 2:
@@ -158,6 +161,9 @@ def slack_event_feed(start):
         start_dt, end_dt = get_date_range(header_block[1])
         if start_dt is None:
             logger.warning("No date found for ts=%s %s", ts, header_block[1])
+            continue
+        if start_dt < now:
+            logger.warning("Date has already past ts=%s %s", ts, header_block[1])
             continue
         event_start_date = start_dt.strftime("%Y-%m-%d")
         event_start_time = start_dt.strftime("%H:%M:00")
@@ -188,7 +194,7 @@ def slack_event_feed(start):
         records.append(event_record)
         logger.info(title)
         logger.info("start: %s %s end: %s %s", event_start_date, event_start_time, event_end_date, event_end_time)
-    out_name = '{}-cal-import.csv'.format(datetime.datetime.now().strftime("%Y-%m-%d %H;%M;%S"))
+    out_name = '{}-cal-import.csv'.format(now.strftime("%Y-%m-%d %H;%M;%S"))
     with open(out_name, mode='w', newline='', encoding='utf-8') as ofile:
         writer = csv.writer(ofile)
         writer.writerow(the_events_calendar.calendar_import_headers)
@@ -212,6 +218,7 @@ def main():
                 print('No timestamp file')
                 exit(1)
     if update_stamp:
+        shutil.copy('slack-timestamp.txt', 'slack-timestamp-last.txt')
         with open('slack-timestamp.txt', 'w') as f:
             f.write(str(now))
 

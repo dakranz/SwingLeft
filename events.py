@@ -58,7 +58,7 @@ def get_calendar_events():
         return load_calendar_events()
     events = []
     now = urllib.parse.quote(datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
-    url = calendar_api_base_url + 'events?per_page=50&start_date=' + now
+    url = calendar_api_base_url + 'events?start_date=' + now
     while True:
         print(url)
         r = requests.get(url, headers=calendar_headers)
@@ -70,10 +70,10 @@ def get_calendar_events():
     return events
 
 
-calendar_metadata_names = {'categories': '?per_page=50&hide_empty=0',
-                           'tags': '?per_page=50&hide_empty=0',
-                           'venues': '?per_page=50',
-                           'organizers': '?per_page=50'}
+calendar_metadata_names = {'categories': '?hide_empty=0',
+                           'tags': '?hide_empty=0',
+                           'venues': '',
+                           'organizers': ''}
 
 
 def get_calendar_metadata():

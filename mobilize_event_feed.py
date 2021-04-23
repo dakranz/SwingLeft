@@ -3,6 +3,7 @@ import csv
 import datetime
 import operator
 import requests
+import shutil
 
 import the_events_calendar
 import events
@@ -94,6 +95,7 @@ def main():
         process_event_feed([get_mobilize_event(url) for url in args.url])
         return
     if update_timestamp:
+        shutil.copy('slack-timestamp.txt', 'slack-timestamp-last.txt')
         with open('mobilize-timestamp.txt', 'w') as f:
             f.write(str(now))
 

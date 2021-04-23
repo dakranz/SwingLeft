@@ -8,8 +8,9 @@ entry_point = 'https://api.mobilize.us/v1/'
 api_header = {'Content-Type': 'application/json'}
 
 
-inside_orgs = ['swingleftboston', 'togetherfor2020', 'swingleftnorthshore',
-               'indivisiblenorthampton', 'indivisiblegreaterandover', 'indivisibleacton-area']
+# inside_orgs = ['swingleftboston', 'togetherfor2020', 'swingleftnorthshore',
+#                'indivisiblenorthampton', 'indivisiblegreaterandover', 'indivisibleacton-area', 'jp-progressives']
+inside_orgs = ['swingleftboston']
 
 
 def mobilize_to_calendar(event):
