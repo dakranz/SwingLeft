@@ -100,4 +100,5 @@ def main():
             f.write(str(now))
 
 
-main()
+if __name__ == '__main__':
+    main()

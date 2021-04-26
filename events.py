@@ -1,3 +1,4 @@
+import base64
 import datetime
 import json
 import requests
@@ -8,9 +9,15 @@ import api_key
 use_saved_data = False
 
 calendar_api_base_url = 'https://' + api_key.wordpress_host_name + '/wp-json/tribe/events/v1/'
-calendar_headers = {'User-Agent': 'Foo bar'}
+calendar_headers = {'User-Agent': 'Foo bar',
+                    'Authorization': 'Basic ' +
+                    base64.standard_b64encode(api_key.wordpress_app_password.encode()).decode()}
 
 skip_list = {}
+
+# inside_orgs = ['swingleftboston', 'togetherfor2020', 'swingleftnorthshore',
+#                'indivisiblenorthampton', 'indivisiblegreaterandover', 'indivisibleacton-area', 'jp-progressives']
+inside_orgs = ['swingleftboston']
 
 
 def filter_event(event):
@@ -24,9 +31,7 @@ def filter_event(event):
         zipcode = event['location']['postal_code']
         if zipcode >= '02800':
             return None
-    if not (city or zipcode or sponsor in ['swingleftboston', 'togetherfor2020', 'swingleftnorthshore',
-                                           'indivisiblenorthampton', 'indivisiblegreaterandover',
-                                           'indivisibleacton-area']):
+    if not (city or zipcode or sponsor in inside_orgs):
         return None
     title = event['title']
     if title in skip_list and event['id'] == skip_list[title]:
@@ -58,11 +63,15 @@ def get_calendar_events():
         return load_calendar_events()
     events = []
     now = urllib.parse.quote(datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
-    url = calendar_api_base_url + 'events?start_date=' + now
+    url = calendar_api_base_url + 'events?status=publish&per_page=50&start_date=' + now
+    count = None
     while True:
         print(url)
         r = requests.get(url, headers=calendar_headers)
         j_data = r.json()
+        if count is None:
+            count = j_data['total']
+            print(count)
         events.extend(j_data['events'])
         if 'next_rest_url' not in j_data:
             break
@@ -70,10 +79,10 @@ def get_calendar_events():
     return events
 
 
-calendar_metadata_names = {'categories': '?hide_empty=0',
-                           'tags': '?hide_empty=0',
-                           'venues': '',
-                           'organizers': ''}
+calendar_metadata_names = {'categories': '?per_page=50&status=publish&hide_empty=0',
+                           'tags': '?per_page=50&status=publish&hide_empty=0',
+                           'venues': '?per_page=50&status=publish',
+                           'organizers': '?per_page=50&status=publish'}
 
 
 def get_calendar_metadata():
@@ -83,11 +92,15 @@ def get_calendar_metadata():
     for kind in calendar_metadata_names:
         url = calendar_api_base_url + kind + calendar_metadata_names[kind]
         data = []
+        count = None
         while True:
             print(url)
             r = requests.get(url, headers=calendar_headers)
             assert r.ok
             j_data = r.json()
+            if count is None:
+                count = j_data['total']
+                print(count)
             data.extend(j_data[kind])
             if 'next_rest_url' not in j_data:
                 break

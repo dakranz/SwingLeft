@@ -141,10 +141,12 @@ def slack_event_feed(start):
     records = []
     now = datetime.datetime.now()
     for message in messages:
+        ts = datetime.datetime.fromtimestamp(float(message['ts'])).strftime('%c')
         logger.info('****************************')
         logger.debug(pformat(message))
         attachments = message.get('attachments', None)
         if attachments is None:
+            logger.warning("Message has no attachment ts=%s", ts)
             continue
         description = '\n\n'.join([a['text'] for a in attachments])
         header_block = message['text'].splitlines()
@@ -153,12 +155,15 @@ def slack_event_feed(start):
             logger.info('Ignoring message with swing left boston mobilize event')
             continue
         organizer = ''
-        ts = datetime.datetime.fromtimestamp(float(message['ts'])).strftime('%c')
         if len(header_block) < 2:
             logger.warning("Event header must have time and date ts=%s", ts)
             continue
         title = remove_markdown(header_block[0])
-        start_dt, end_dt = get_date_range(header_block[1])
+        start_dt = end_dt = None
+        try:
+            start_dt, end_dt = get_date_range(header_block[1])
+        except ValueError:
+            pass
         if start_dt is None:
             logger.warning("No date found for ts=%s %s", ts, header_block[1])
             continue
@@ -178,7 +183,9 @@ def slack_event_feed(start):
             if 'channel_name' in attachment:
                 tags.append(attachment['channel_name'])
         for line in header_block[2:]:
-            m = re.match(r'(\w*)\s*:(.*)', line.strip())
+            # remove markup bold
+            line = line.replace('*', '')
+            m = re.match(r'(\w+)\s*:(.*)', line.strip())
             if m is None:
                 continue
             key = m[1].lower()
@@ -187,8 +194,9 @@ def slack_event_feed(start):
                 organizer = value
             elif key == 'rsvp':
                 description += ('\n\n' + value)
+        description += '\n\nImported from NewsMAGIC'
         description = convert_description(description)
-        event_record = ['NEWSMAGIC ' + title, description, organizer, 'Online/Anywhere', event_start_date,
+        event_record = [title, description, organizer, 'Online/Anywhere', event_start_date,
                         event_start_time, event_end_date, event_end_time, '', '', '',
                         ','.join(categories), ','.join(tags), '']
         records.append(event_record)
@@ -223,5 +231,6 @@ def main():
             f.write(str(now))
 
 
-main()
+if __name__ == '__main__':
+    main()
 

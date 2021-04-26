@@ -17,4 +17,4 @@ function slgb_set_custom_fields (array $postarr, WP_REST_Request $request ) {
 	return $postarr;
 }
 
-add_filter( 'tribe_rest_event_data', 'slgb_add_custom_fields');
+add_filter( 'tribe_rest_event_data', 'slgb_get_custom_fields');

@@ -1,16 +1,12 @@
 import datetime
 import markdown
 
+import events
 import regions
 import the_events_calendar
 
 entry_point = 'https://api.mobilize.us/v1/'
 api_header = {'Content-Type': 'application/json'}
-
-
-# inside_orgs = ['swingleftboston', 'togetherfor2020', 'swingleftnorthshore',
-#                'indivisiblenorthampton', 'indivisiblegreaterandover', 'indivisibleacton-area', 'jp-progressives']
-inside_orgs = ['swingleftboston']
 
 
 def mobilize_to_calendar(event):
@@ -33,7 +29,7 @@ def mobilize_to_calendar(event):
         if zip_code >= '02800':
             return None
     # Skip events with no location unless sponsored by us or a close sponsor
-    if not (city or zip_code or sponsor in inside_orgs):
+    if not (city or zip_code or sponsor in events.inside_orgs):
         return None
     categories = []
     tags = []

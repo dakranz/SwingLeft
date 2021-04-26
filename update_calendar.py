@@ -155,4 +155,5 @@ def update_calendar(path):
             logger.debug(pformat(returned_data))
 
 
-update_calendar(args.csv_file)
+if __name__ == '__main__':
+    update_calendar(args.csv_file)

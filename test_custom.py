@@ -4,6 +4,7 @@ from pprint import pformat
 
 import api_key
 import events
+import regions
 
 auth_header = {'Authorization': 'Basic ' + base64.standard_b64encode(api_key.wordpress_app_password.encode()).decode(),
                'User-Agent': 'Foo bar'}
@@ -21,9 +22,9 @@ def create_event(json):
 def main(event_id):
     post_data = {'title': 'Custom field test',
                  'description': 'This is a custom field test',
-                 'start_date': '2021-04-01 10:00:00',
-                 'end_date': '2021-04-01 11:00:00',
-                 '_ecp_custom_6': 'banana`'
+                 'start_date': '2021-05-01 10:00:00',
+                 'end_date': '2021-05-01 11:00:00',
+                 '_ecp_custom_6': 'western-mass-events'
                  }
     if event_id is not None:
         post_data['id'] = event_id
@@ -51,5 +52,5 @@ def delete_bad_venues(n):
     print(i)
 
 
-delete_bad_venues(250)
-#main(42669)
+#delete_bad_venues(250)
+main(42759)
