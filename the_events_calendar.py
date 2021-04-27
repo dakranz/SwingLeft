@@ -1,15 +1,7 @@
 calendar_import_headers = ['Event Name', 'Event Description', 'Event Organizers', 'Event Venue Name',
                            'Event Start Date', 'Event Start Time', 'Event End Date', 'Event End Time',
-                           'Event Website', 'City', 'State', 'Event Category', 'Event Tags', 'Event Featured Image']
-
-
-state_categories = {'RI': 'rhode-island-events',
-                    'VT': 'vermont-events',
-                    'CT': 'connecticut-events',
-                    'ME': 'maine-events-2'
-                   }
-
-other_states = 'outside-new-england'
+                           'Event Website', 'City', 'State', 'Event Category', 'Event Tags', 'Event Featured Image',
+                           'Region']
 
 
 # Matching will be case-sensitive iff a search term has an uppercase char

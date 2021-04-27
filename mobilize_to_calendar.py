@@ -33,16 +33,13 @@ def mobilize_to_calendar(event):
         return None
     categories = []
     tags = []
-    region = None
-    # Need to figure this out. Right now we can only have one category which is the event activity.
-    # if state in state_categories:
-    #     region = state_categories[state]
-    # elif state == 'MA' and 'location' in event['location']:
-    #     region = regions.get_ma_region_by_location(event['location']['location'], city)
-    # elif state == 'MA':
-    #     region = regions.get_ma_region_by_zip(zip_code)
-    # if region is not None:
-    #     categories.append(region)
+    region = ''
+    if state in regions.state_categories:
+        region = regions.state_categories[state]
+    elif state == 'MA' and 'location' in event['location']:
+        region = regions.get_ma_region_by_location(event['location']['location'], city)
+    elif state == 'MA':
+        region = regions.get_ma_region_by_zip(zip_code)
     text = event['title'] + ' ' + event['description']
     the_events_calendar.add_state_categories(categories, text)
     the_events_calendar.add_activity_categories(categories, text, event['title'])
@@ -76,7 +73,7 @@ def mobilize_to_calendar(event):
         event_end_time = end.strftime("%H:%M:00")
         event_record = [event_name, event_description, event_organizers, event_venue_name, event_start_date,
                         event_start_time, event_end_date, event_end_time, event_url, city, state,
-                        ','.join(categories), ','.join(tags), event.get('featured_image_url', '')]
+                        ','.join(categories), ','.join(tags), event.get('featured_image_url', ''), region]
         if time_slot['is_full']:
             continue
         event_records.append(event_record)

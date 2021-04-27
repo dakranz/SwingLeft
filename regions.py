@@ -1,5 +1,13 @@
 import csv
 
+state_categories = {'RI': 'rhode-island-events',
+                    'VT': 'vermont-events',
+                    'CT': 'connecticut-events',
+                    'ME': 'maine-events-2'
+                   }
+
+other_states = 'outside-new-england'
+
 # latitude grows south to north
 # longitude grows west to east
 regions = [{'slug': 'metro-boston-events',

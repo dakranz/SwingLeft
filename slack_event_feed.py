@@ -50,9 +50,17 @@ def validate_year(dt, year):
 # basically in that order and it does not matter what other stuff is in between each of them as long as the numbers
 # can be parsed out. The year is optional as is an am/pm for the start-time (but at least one am/pm is required).
 # The calendar requires an end time
-# so we assume an hour if no range is specified. The month can be as in 'January 6' or /1/6'.
+# so we assume an hour if no range is specified. The month can be as in 'January 6' or /1/6'. It is also possible that
+# the date will be inside a markup link.
 def get_date_range(s):
     s = s.strip().lower()
+    link_match = re.match(r'<.*\|(.*?)>', s)
+    if link_match:
+        return get_date_range_no_link(link_match[1])
+    return get_date_range_no_link(s)
+
+
+def get_date_range_no_link(s):
     month = None
     day = None
     start_time = end_time = None
@@ -138,15 +146,19 @@ def convert_description(description):
 # Optional: "Organizer:" followed by the organizer name
 def slack_event_feed(start):
     messages = slack.get_messages('1-upcoming-events-for-the-next-month', start)
-    records = []
+    process_slack_messages(messages)
+
+
+def process_slack_messages(messages):
     now = datetime.datetime.now()
+    records = []
     for message in messages:
         ts = datetime.datetime.fromtimestamp(float(message['ts'])).strftime('%c')
         logger.info('****************************')
         logger.debug(pformat(message))
         attachments = message.get('attachments', None)
         if attachments is None:
-            logger.warning("Message has no attachment ts=%s", ts)
+            logger.warning("Message has no attachment: ts=%s", ts)
             continue
         description = '\n\n'.join([a['text'] for a in attachments])
         header_block = message['text'].splitlines()
@@ -155,38 +167,23 @@ def slack_event_feed(start):
             logger.info('Ignoring message with swing left boston mobilize event')
             continue
         organizer = ''
-        if len(header_block) < 2:
-            logger.warning("Event header must have time and date ts=%s", ts)
-            continue
         title = remove_markdown(header_block[0])
-        start_dt = end_dt = None
-        try:
-            start_dt, end_dt = get_date_range(header_block[1])
-        except ValueError:
-            pass
-        if start_dt is None:
-            logger.warning("No date found for ts=%s %s", ts, header_block[1])
-            continue
-        if start_dt < now:
-            logger.warning("Date has already past ts=%s %s", ts, header_block[1])
-            continue
-        event_start_date = start_dt.strftime("%Y-%m-%d")
-        event_start_time = start_dt.strftime("%H:%M:00")
-        event_end_date = end_dt.strftime("%Y-%m-%d")
-        event_end_time = end_dt.strftime("%H:%M:00")
         text = title + ' ' + description
         categories = []
         tags = []
-        the_events_calendar.add_state_categories(categories, text)
         the_events_calendar.add_activity_categories(categories, text, title)
         for attachment in attachments:
             if 'channel_name' in attachment:
                 tags.append(attachment['channel_name'])
-        for line in header_block[2:]:
+        date_lines = []
+        for line in header_block[1:]:
             # remove markup bold
-            line = line.replace('*', '')
-            m = re.match(r'(\w+)\s*:(.*)', line.strip())
+            line = line.replace('*', '').strip()
+            if len(line) == 0:
+                continue
+            m = re.match(r'(\w+)\s*:(.*)', line)
             if m is None:
+                date_lines.append(line)
                 continue
             key = m[1].lower()
             value = m[2].strip()
@@ -194,14 +191,36 @@ def slack_event_feed(start):
                 organizer = value
             elif key == 'rsvp':
                 description += ('\n\n' + value)
+            elif key == 'activity':
+                categories = [value]
         description += '\n\nImported from NewsMAGIC'
         description = convert_description(description)
-        event_record = [title, description, organizer, 'Online/Anywhere', event_start_date,
-                        event_start_time, event_end_date, event_end_time, '', '', '',
-                        ','.join(categories), ','.join(tags), '']
-        records.append(event_record)
         logger.info(title)
-        logger.info("start: %s %s end: %s %s", event_start_date, event_start_time, event_end_date, event_end_time)
+        if len(date_lines) == 0:
+            logger.warning("No date found: ts=%s", ts)
+        for line in date_lines:
+            start_dt = end_dt = None
+            try:
+                start_dt, end_dt = get_date_range(line)
+            except ValueError:
+                pass
+            if start_dt is None:
+                logger.warning("Bad date string: %s", line)
+                continue
+            if start_dt < now:
+                logger.warning("Date has already past: %s", line)
+                continue
+            event_start_date = start_dt.strftime("%Y-%m-%d")
+            event_start_time = start_dt.strftime("%H:%M:00")
+            event_end_date = end_dt.strftime("%Y-%m-%d")
+            event_end_time = end_dt.strftime("%H:%M:00")
+            event_record = [title, description, organizer, 'Online/Anywhere', event_start_date,
+                            event_start_time, event_end_date, event_end_time, '', '', '',
+                            ','.join(categories), ','.join(tags), '', '']
+            records.append(event_record)
+            logger.info("start: %s %s end: %s %s", event_start_date, event_start_time, event_end_date, event_end_time)
+    if len(records) == 0:
+        return
     out_name = '{}-cal-import.csv'.format(now.strftime("%Y-%m-%d %H;%M;%S"))
     with open(out_name, mode='w', newline='', encoding='utf-8') as ofile:
         writer = csv.writer(ofile)

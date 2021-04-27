@@ -68,11 +68,13 @@ def process_event_feed(event_list):
         event_data = mobilize_to_calendar.mobilize_to_calendar(event)
         if event_data is not None:
             records.extend(event_data)
-        out_name = '{}-cal-import.csv'.format(current_date)
-        with open(out_name, mode='w', newline='', encoding='utf-8') as ofile:
-            writer = csv.writer(ofile)
-            writer.writerow(the_events_calendar.calendar_import_headers)
-            writer.writerows(records)
+    if len(records) == 0:
+        return
+    out_name = '{}-cal-import.csv'.format(current_date)
+    with open(out_name, mode='w', newline='', encoding='utf-8') as ofile:
+        writer = csv.writer(ofile)
+        writer.writerow(the_events_calendar.calendar_import_headers)
+        writer.writerows(records)
     print(out_name)
 
 

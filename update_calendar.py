@@ -31,6 +31,9 @@ auth_header = {'Authorization': 'Basic ' + base64.standard_b64encode(api_key.wor
                'User-Agent': 'Foo bar'}
 base_url = 'https://' + api_key.wordpress_host_name + '/wp-json/tribe/events/v1/events'
 
+# Unfortunately we cannot control the random names the events calendar assigns to custom fields but it should not change
+custom_field_map = {'region': '_ecp_custom_6'}
+
 
 def update_event(event_id, json):
     return requests.post('{}/{}'.format(base_url, event_id), headers=auth_header, json=json)
@@ -113,12 +116,15 @@ def update_calendar(path):
             category_ids = get_category_ids(calendar_metadata, categories_slugs)
             venue_id = get_venue_id(calendar_metadata, venue_venue)
             organizer_id = get_organizer_id(calendar_metadata, organizer_organizer)
+            region = event[headers.index('Region')]
             post_data = {'title': title,
                          'description': description,
                          'start_date': start_date,
                          'end_date': end_date,
                          'website': website
                          }
+            if region:
+                post_data[custom_field_map['region']] = region
             # There is a bug in The Events Calendar where tags and categories are documented to accept an array,
             # but in reality they take a single item. The documentation also says that various of the following can
             # take string names as values but in reality only providing ids seems to work.
