@@ -24,7 +24,9 @@ def main(event_id):
                  'description': 'This is a custom field test',
                  'start_date': '2021-05-01 10:00:00',
                  'end_date': '2021-05-01 11:00:00',
-                 '_ecp_custom_6': 'western-mass-events'
+                 '_ecp_custom_6': 'western-mass-events',
+                 'venue': {'venue': 'Anywhere, MA'},
+                 'organizer': {'organizer': 'This is a New Org'}
                  }
     if event_id is not None:
         post_data['id'] = event_id
@@ -33,7 +35,7 @@ def main(event_id):
         r = create_event(post_data)
     else:
         r = update_event(event_id, post_data)
-    print(r.text)
+    print(pformat(r.json()))
 
 
 def delete_bad_venues(n):
@@ -54,3 +56,20 @@ def delete_bad_venues(n):
 
 #delete_bad_venues(250)
 main(42759)
+
+# url = 'https://files.slack.com/files-pri/T01H6FDKJ12-F01VC97DBAN/download/ruralcaucus-i1.png'
+# r = requests.get(url, headers={'Authorization': 'Bearer ' + api_key.slack_news_magic_key})
+# with open('test.png', 'wb') as f:
+#     f.write(r.content)
+
+
+# media = {'file': open('test.png', "rb"), 'caption': 'My great demo picture'}
+# r = requests.post('https://' + api_key.wordpress_host_name + "/wp-json/wp/v2/media", headers=auth_header, files=media)
+# if not r.ok:
+#     print(r.text)
+# else:
+#     print(pformat(r.json))
+
+# r = requests.post('https://' + api_key.wordpress_host_name + "/wp-json/wp/v2/media/42795", headers=auth_header,
+#                   json={'id': 42795, "slug": 'this-is-a-test-slug'})
+# print(pformat(r.json()))

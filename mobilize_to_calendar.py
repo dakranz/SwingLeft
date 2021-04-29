@@ -63,7 +63,6 @@ def mobilize_to_calendar(event):
             print('Skipping daily event: ', event['browser_url'])
             return None
     event_records = []
-    print(datetime.datetime.fromtimestamp(event['created_date']), event['title'], event_url)
     for time_slot in time_slots:
         start = datetime.datetime.fromtimestamp(time_slot['start_date'])
         end = datetime.datetime.fromtimestamp(time_slot['end_date'])
@@ -77,4 +76,6 @@ def mobilize_to_calendar(event):
         if time_slot['is_full']:
             continue
         event_records.append(event_record)
+    num = "[{}]".format(len(event_records))
+    print(datetime.datetime.fromtimestamp(event['created_date']), num, event['title'], event_url)
     return event_records

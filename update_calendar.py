@@ -29,18 +29,19 @@ if args.use_cached_data:
 
 auth_header = {'Authorization': 'Basic ' + base64.standard_b64encode(api_key.wordpress_app_password.encode()).decode(),
                'User-Agent': 'Foo bar'}
-base_url = 'https://' + api_key.wordpress_host_name + '/wp-json/tribe/events/v1/events'
+events_base_url = 'https://' + api_key.wordpress_host_name + '/wp-json/tribe/events/v1/events'
+venues_base_url = 'https://' + api_key.wordpress_host_name + '/wp-json/tribe/events/v1/venues'
 
 # Unfortunately we cannot control the random names the events calendar assigns to custom fields but it should not change
 custom_field_map = {'region': '_ecp_custom_6'}
 
 
 def update_event(event_id, json):
-    return requests.post('{}/{}'.format(base_url, event_id), headers=auth_header, json=json)
+    return requests.post('{}/{}'.format(events_base_url, event_id), headers=auth_header, json=json)
 
 
 def create_event(json):
-    return requests.post(base_url, headers=auth_header, json=json)
+    return requests.post(events_base_url, headers=auth_header, json=json)
 
 
 def get_metadata_id(metadata, kind, key, value):
@@ -59,11 +60,24 @@ def get_category_id(metadata, value):
 
 
 def get_venue_id(metadata, value):
-    return get_metadata_id(metadata, 'venues', 'venue', value)
+    venue_id = get_metadata_id(metadata, 'venues', 'venue', value)
+    if venue_id is not None:
+        return venue_id
+    r = requests.post(venues_base_url, headers=auth_header, json={'venue': value})
+    if not r.ok:
+        logger.warning("Could not create venue for %s: %s", value, r.text)
+        return None
+    new_venue = r.json()
+    metadata['venues'].append(new_venue)
+    logger.info("Created venue for %s", value)
+    return new_venue['id']
 
 
 def get_organizer_id(metadata, value):
-    return get_metadata_id(metadata, 'organizers', 'organizer', value)
+    organizer_id = get_metadata_id(metadata, 'organizers', 'organizer', value)
+    if organizer_id is None:
+        logger.warning("No organizer: %s", value)
+    return organizer_id
 
 
 def get_tag_ids(metadata, slugs):

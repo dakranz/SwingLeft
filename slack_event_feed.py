@@ -21,6 +21,8 @@ _parser.add_argument("-d", "--debug", action="store_true",
                     help="Log debug info.")
 _parser.add_argument("-u", "--update_timestamp", action="store_true",
                     help="Update slack-timestamp.txt to current time.")
+_parser.add_argument("-s", "--search",
+                    help="Process only messages with search string in title.")
 args = _parser.parse_args()
 
 logger = logging.getLogger(__name__)
@@ -162,6 +164,13 @@ def process_slack_messages(messages):
             continue
         description = '\n\n'.join([a['text'] for a in attachments])
         header_block = message['text'].splitlines()
+        if len(header_block) == 0:
+            logger.warning("Message has no title: ts=%s", ts)
+            continue
+        if args.search is not None and args.search not in header_block[0]:
+            continue
+        elif args.search is not None:
+            logger.info(pformat(message))
         logger.info(pformat(header_block))
         if 'mobilize.us/swingleftbos' in description:
             logger.info('Ignoring message with swing left boston mobilize event')
@@ -190,7 +199,7 @@ def process_slack_messages(messages):
             if key == 'group':
                 organizer = value
             elif key == 'rsvp':
-                description += ('\n\n' + value)
+                description = '{}\n\nRSVP: {}'.format(description, value)
             elif key == 'activity':
                 categories = [value]
         description += '\n\nImported from NewsMAGIC'
