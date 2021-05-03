@@ -1,4 +1,5 @@
 import base64
+import json
 import requests
 from pprint import pformat
 
@@ -24,9 +25,11 @@ def main(event_id):
                  'description': 'This is a custom field test',
                  'start_date': '2021-05-01 10:00:00',
                  'end_date': '2021-05-01 11:00:00',
-                 '_ecp_custom_6': 'western-mass-events',
+                 '_ecp_custom_2': 'western-mass-events',
                  'venue': {'venue': 'Anywhere, MA'},
-                 'organizer': {'organizer': 'This is a New Org'}
+                 'organizer': {'id': 18},
+                 'tags': {'id': 3},
+                 'categories': {'id': 21}
                  }
     if event_id is not None:
         post_data['id'] = event_id
@@ -55,7 +58,7 @@ def delete_bad_venues(n):
 
 
 #delete_bad_venues(250)
-main(42759)
+main(None)
 
 # url = 'https://files.slack.com/files-pri/T01H6FDKJ12-F01VC97DBAN/download/ruralcaucus-i1.png'
 # r = requests.get(url, headers={'Authorization': 'Bearer ' + api_key.slack_news_magic_key})

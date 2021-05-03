@@ -1,6 +1,6 @@
 calendar_import_headers = ['Event Name', 'Event Description', 'Event Organizers', 'Event Venue Name',
                            'Event Start Date', 'Event Start Time', 'Event End Date', 'Event End Time',
-                           'Event Website', 'City', 'State', 'Event Category', 'Event Tags', 'Event Featured Image',
+                           'Event Website', 'City', 'State', 'Event Category', 'Event Tags', 'Zip Code',
                            'Region']
 
 
@@ -12,13 +12,18 @@ event_tags = {"vote-by-mail": ["vote by mail", 'VBM', "vote-by-mail"],
               }
 
 activities = {"canvassing": ["canvas"],
-              "phone-calls": ["phone"],
-              "postcards-letters": ["letter", "postcard", "post card", "pick up", "pick up", "pick-up"],
+              "phone-banking": ["phone"],
+              "letters-postcards": [" letter", "postcard", "post card", "pick up", "pick up", "pick-up"],
               "texting": ["texting", "text bank"],
               "fundraiser": ["fundrai"],
               "training": ["training"],
               "briefing": ["briefing"]
               }
+
+
+def has_real_venue(categories):
+    return "letters-postcards" in categories
+
 
 states = {"arizona-events": ["AZ", "Arizona"],
           "colorado-events": ["CO", "Colorado"],

@@ -33,7 +33,7 @@ events_base_url = 'https://' + api_key.wordpress_host_name + '/wp-json/tribe/eve
 venues_base_url = 'https://' + api_key.wordpress_host_name + '/wp-json/tribe/events/v1/venues'
 
 # Unfortunately we cannot control the random names the events calendar assigns to custom fields but it should not change
-custom_field_map = {'region': '_ecp_custom_6'}
+custom_field_map = {'region': '_ecp_custom_2'}
 
 
 def update_event(event_id, json):
@@ -59,11 +59,20 @@ def get_category_id(metadata, value):
     return get_metadata_id(metadata, 'categories', 'slug', value)
 
 
-def get_venue_id(metadata, value):
+def get_venue_id(metadata, value, city, state, zip_code):
     venue_id = get_metadata_id(metadata, 'venues', 'venue', value)
     if venue_id is not None:
         return venue_id
-    r = requests.post(venues_base_url, headers=auth_header, json={'venue': value})
+    data = {'venue': value}
+    if city:
+        data['city'] = city
+    # Calendar API seems to use province but not state
+    if state:
+        data['province'] = state
+    # Calendar API bug makes this bomb out
+    # if zip_code:
+    #     data['zip'] = int(zip_code)
+    r = requests.post(venues_base_url, headers=auth_header, json=data)
     if not r.ok:
         logger.warning("Could not create venue for %s: %s", value, r.text)
         return None
@@ -73,15 +82,20 @@ def get_venue_id(metadata, value):
     return new_venue['id']
 
 
-def get_organizer_id(metadata, value):
-    organizer_id = get_metadata_id(metadata, 'organizers', 'organizer', value)
-    if organizer_id is None:
-        logger.warning("No organizer: %s", value)
-    return organizer_id
+def get_organizer_id(metadata, value, title, description):
+    v = value.lower()
+    for x in metadata['organizers']:
+        if x['organizer'].lower() == v:
+            return x['id']
+    logger.warning("No organizer: %s", value)
+    return None
 
 
 def get_tag_ids(metadata, slugs):
-    return [get_tag_id(metadata, slug) for slug in slugs]
+    tags = [get_tag_id(metadata, slug) for slug in slugs]
+    if len(tags) == 0 and len(slugs) > 0:
+        logger.warning("No tag: %s", slugs)
+    return tags
 
 
 def get_category_ids(metadata, slugs):
@@ -111,15 +125,15 @@ def update_calendar(path):
     with open(path, newline='', encoding='utf-8') as ifile:
         reader = csv.reader(ifile)
         headers = next(reader)
-        city = headers.index('City')
-        state = headers.index('State')
-        event_featured_image = headers.index('Event Featured Image')
         calendar_metadata = events.get_calendar_metadata()
         event_map = events.get_event_map()
         for event in reader:
             title = event[headers.index('Event Name')]
             description = event[headers.index('Event Description')]
             website = event[headers.index('Event Website')]
+            city = event[headers.index('City')]
+            state = event[headers.index('State')]
+            zip_code = headers.index('Zip Code')
             start_date = event[headers.index('Event Start Date')] + ' ' + event[headers.index('Event Start Time')]
             end_date = event[headers.index('Event End Date')] + ' ' + event[headers.index('Event End Time')]
             categories_slugs = comma_list(event[headers.index('Event Category')])
@@ -128,8 +142,8 @@ def update_calendar(path):
             tags_slugs = comma_list(event[headers.index('Event Tags')])
             tag_ids = get_tag_ids(calendar_metadata, tags_slugs)
             category_ids = get_category_ids(calendar_metadata, categories_slugs)
-            venue_id = get_venue_id(calendar_metadata, venue_venue)
-            organizer_id = get_organizer_id(calendar_metadata, organizer_organizer)
+            venue_id = get_venue_id(calendar_metadata, venue_venue, city, state, zip_code)
+            organizer_id = get_organizer_id(calendar_metadata, organizer_organizer, title, description)
             region = event[headers.index('Region')]
             post_data = {'title': title,
                          'description': description,
@@ -137,8 +151,9 @@ def update_calendar(path):
                          'end_date': end_date,
                          'website': website
                          }
-            if region:
-                post_data[custom_field_map['region']] = region
+            # Not doing regions at the moment
+            # if region:
+            #     post_data[custom_field_map['region']] = region
             # There is a bug in The Events Calendar where tags and categories are documented to accept an array,
             # but in reality they take a single item. The documentation also says that various of the following can
             # take string names as values but in reality only providing ids seems to work.

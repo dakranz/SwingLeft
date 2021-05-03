@@ -44,7 +44,7 @@ def mobilize_to_calendar(event):
     the_events_calendar.add_state_categories(categories, text)
     the_events_calendar.add_activity_categories(categories, text, event['title'])
     the_events_calendar.add_tags(tags, text)
-    if 'postcards-letters' in categories:
+    if the_events_calendar.has_real_venue(categories):
         if city and state:
             event_name = '{}, {} - {}'.format(city.upper(), state, event['title'])
             event_venue_name = '{}, {}'.format(city, state)
@@ -72,10 +72,12 @@ def mobilize_to_calendar(event):
         event_end_time = end.strftime("%H:%M:00")
         event_record = [event_name, event_description, event_organizers, event_venue_name, event_start_date,
                         event_start_time, event_end_date, event_end_time, event_url, city, state,
-                        ','.join(categories), ','.join(tags), event.get('featured_image_url', ''), region]
+                        ','.join(categories), ','.join(tags), zip_code, region]
         if time_slot['is_full']:
             continue
         event_records.append(event_record)
     num = "[{}]".format(len(event_records))
-    print(datetime.datetime.fromtimestamp(event['created_date']), num, event['title'], event_url)
+    created = datetime.datetime.fromtimestamp(event['created_date'])
+    modified = datetime.datetime.fromtimestamp(event['modified_date'])
+    print(created, modified, num, event['title'], event_url)
     return event_records

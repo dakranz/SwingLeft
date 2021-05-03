@@ -18,7 +18,7 @@ parser.add_argument("-t", "--timestamp", action="store_true",
                     help="Use value in mobilize-timestamp.txt as oldest event to process")
 parser.add_argument("-d", "--debug", action="store_true",
                     help="Log debug info.")
-parser.add_argument("-u", "--update_timestamp", action="store_true",
+parser.add_argument("--update_timestamp", action="store_true",
                     help="Update mobilize-timestamp.txt to current time.")
 args = parser.parse_args()
 

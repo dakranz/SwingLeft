@@ -106,6 +106,12 @@ def get_date_range_no_link(s):
         end_date = start_date.replace(hour=start_date.hour + 1)
     else:
         end_date = validate_year(parser.parse('{} {} {} {}'.format(month, day, year, end_time)), year)
+    # Handle weird cases like '11 to 12:30pm'
+    if start_date > end_date:
+        start_date = start_date.replace(hour=start_date.hour - 12)
+    # Can't handle it yet or an error
+    if start_date > end_date:
+        return None, None
     return start_date, end_date
 
 
@@ -217,7 +223,7 @@ def process_slack_messages(messages):
                 logger.warning("Bad date string: %s", line)
                 continue
             if start_dt < now:
-                logger.warning("Date has already past: %s", line)
+                logger.info("Date has already passed: %s", line)
                 continue
             event_start_date = start_dt.strftime("%Y-%m-%d")
             event_start_time = start_dt.strftime("%H:%M:00")
@@ -239,7 +245,7 @@ def process_slack_messages(messages):
 
 
 def main():
-    if len([x for x in [args.hours, args.timestamp] if x]) != 1:
+    if len([x for x in [args.hours, args.timestamp, args.update_timestamp] if x]) != 1:
         print('Must specify exactly one of -t or --hours')
         exit(1)
     now = int(datetime.datetime.now().timestamp())
