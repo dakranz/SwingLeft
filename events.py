@@ -85,11 +85,13 @@ calendar_metadata_names = {'categories': '?per_page=50&status=publish&hide_empty
                            'organizers': '?per_page=50&status=publish'}
 
 
-def get_calendar_metadata():
+def get_calendar_metadata(kinds=('categories', 'tags', 'venues', 'organizers')):
     if use_saved_data:
         return load_calendar_metadata()
     metadata = {}
     for kind in calendar_metadata_names:
+        if kind not in kinds:
+            continue
         url = calendar_api_base_url + kind + calendar_metadata_names[kind]
         data = []
         count = None

@@ -9,6 +9,7 @@ from pprint import pformat
 import re
 import shutil
 
+import events
 import the_events_calendar
 import slack
 
@@ -23,6 +24,8 @@ _parser.add_argument("-u", "--update_timestamp", action="store_true",
                     help="Update slack-timestamp.txt to current time.")
 _parser.add_argument("-s", "--search",
                     help="Process only messages with search string in title.")
+_parser.add_argument("--old", action="store_true",
+                    help="Process events that have already passed.")
 args = _parser.parse_args()
 
 logger = logging.getLogger(__name__)
@@ -71,10 +74,10 @@ def get_date_range_no_link(s):
             month = m
             break
     if month is None:
-        month_part = re.match(r'(\d+)/', s)
+        month_part = re.match(r'(.*?)(\d+)/', s)
         if month_part is None:
             return None, None
-        month_num = month_part[0][0]
+        month_num = month_part[2]
         month = months[int(month_num) - 1]
         s = s.replace(month_num, '', 1)
     y = re.findall(r'(\d\d\d\d)', s)
@@ -146,20 +149,30 @@ def convert_description(description):
     return markdown.markdown(buf.getvalue())
 
 
+def infer_organizer(organizers, specified_org, title, description):
+    organizer = the_events_calendar.infer_organizer(organizers, specified_org, title, description)
+    if organizer is not None:
+        logger.info("Organizer: %s", organizer['organizer'])
+        return organizer['organizer']
+    logger.warning("No organizer: %s", specified_org)
+    return ''
+
+
 # This function pulls all the events from the channel since the specified time. The channel must use a format where
 # messages have been shared with a header that is several lines. The forwarded message shows up as an attachment. The
 # headers are as follows:
 # Required: title
 # Required: date range
 # Optional: "Organizer:" followed by the organizer name
-def slack_event_feed(start):
-    messages = slack.get_messages('1-upcoming-events-for-the-next-month', start)
+def slack_event_feed(start, channel):
+    messages = slack.get_messages(channel, start)
     process_slack_messages(messages)
 
 
 def process_slack_messages(messages):
     now = datetime.datetime.now()
     records = []
+    organizers = None
     for message in messages:
         ts = datetime.datetime.fromtimestamp(float(message['ts'])).strftime('%c')
         logger.info('****************************')
@@ -208,8 +221,11 @@ def process_slack_messages(messages):
                 description = '{}\n\nRSVP: {}'.format(description, value)
             elif key == 'activity':
                 categories = [value]
-        description += '\n\nImported from NewsMAGIC'
         description = convert_description(description)
+        if organizers is None:
+            organizers = events.get_calendar_metadata('organizers')['organizers']
+        organizer = infer_organizer(organizers, organizer, title, description)
+        description += '\n\nImported from NewsMAGIC'
         logger.info(title)
         if len(date_lines) == 0:
             logger.warning("No date found: ts=%s", ts)
@@ -222,7 +238,7 @@ def process_slack_messages(messages):
             if start_dt is None:
                 logger.warning("Bad date string: %s", line)
                 continue
-            if start_dt < now:
+            if start_dt < now and not args.old:
                 logger.info("Date has already passed: %s", line)
                 continue
             event_start_date = start_dt.strftime("%Y-%m-%d")
@@ -245,17 +261,18 @@ def process_slack_messages(messages):
 
 
 def main():
+    channel = '1-upcoming-events-for-the-next-month'
     if len([x for x in [args.hours, args.timestamp, args.update_timestamp] if x]) != 1:
         print('Must specify exactly one of -t or --hours')
         exit(1)
     now = int(datetime.datetime.now().timestamp())
     update_stamp = args.timestamp or args.update_timestamp
     if args.hours:
-        slack_event_feed(now - args.hours * 3600)
+        slack_event_feed(now - args.hours * 3600, channel)
     elif args.timestamp:
         with open('slack-timestamp.txt') as f:
             try:
-                slack_event_feed(int(f.read()))
+                slack_event_feed(int(f.read()), channel)
             except FileNotFoundError:
                 print('No timestamp file')
                 exit(1)

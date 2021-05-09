@@ -7,6 +7,7 @@ from pprint import pformat
 
 import api_key
 import events
+import the_events_calendar
 
 parser = argparse.ArgumentParser()
 parser.add_argument("csv_file", help="csv file with event data")
@@ -82,12 +83,10 @@ def get_venue_id(metadata, value, city, state, zip_code):
     return new_venue['id']
 
 
-def get_organizer_id(metadata, value, title, description):
-    v = value.lower()
+def get_organizer_id(metadata, value):
     for x in metadata['organizers']:
-        if x['organizer'].lower() == v:
+        if x['organizer'] == value:
             return x['id']
-    logger.warning("No organizer: %s", value)
     return None
 
 
@@ -143,7 +142,7 @@ def update_calendar(path):
             tag_ids = get_tag_ids(calendar_metadata, tags_slugs)
             category_ids = get_category_ids(calendar_metadata, categories_slugs)
             venue_id = get_venue_id(calendar_metadata, venue_venue, city, state, zip_code)
-            organizer_id = get_organizer_id(calendar_metadata, organizer_organizer, title, description)
+            organizer_id = get_organizer_id(calendar_metadata, organizer_organizer)
             region = event[headers.index('Region')]
             post_data = {'title': title,
                          'description': description,

@@ -52,7 +52,7 @@ def mobilize_to_calendar(event):
             event_name = event['title']
             event_venue_name = ''
     else:
-        event_name = 'ONLINE - ' + event['title']
+        event_name = event['title']
         event_venue_name = 'Online/Anywhere'
     now = int(datetime.datetime.now().timestamp())
     time_slots = [slot for slot in event['timeslots'] if slot['start_date'] > now]
@@ -73,8 +73,9 @@ def mobilize_to_calendar(event):
         event_record = [event_name, event_description, event_organizers, event_venue_name, event_start_date,
                         event_start_time, event_end_date, event_end_time, event_url, city, state,
                         ','.join(categories), ','.join(tags), zip_code, region]
-        if time_slot['is_full']:
-            continue
+        # Accept full events for now
+        # if time_slot['is_full']:
+        #     continue
         event_records.append(event_record)
     num = "[{}]".format(len(event_records))
     created = datetime.datetime.fromtimestamp(event['created_date'])

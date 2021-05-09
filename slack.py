@@ -5,7 +5,7 @@ from pprint import pprint
 
 def get_messages(channel_name, last_fetched):
     client = WebClient(token=api_key.slack_news_magic_key)
-    conversations = client.conversations_list()
+    conversations = client.conversations_list(types='private_channel,public_channel')
     channel_id = None
     for c in conversations['channels']:
         if c['name'] == channel_name:

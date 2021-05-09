@@ -1,3 +1,6 @@
+import io
+import re
+
 calendar_import_headers = ['Event Name', 'Event Description', 'Event Organizers', 'Event Venue Name',
                            'Event Start Date', 'Event Start Time', 'Event End Date', 'Event End Time',
                            'Event Website', 'City', 'State', 'Event Category', 'Event Tags', 'Zip Code',
@@ -78,3 +81,58 @@ def add_tags(tag_list, text):
             if s in (lc_text if s.islower() else text):
                 tag_list.append(tag)
                 break
+
+
+def strip_html_tags_and_split(text):
+    buf = io.StringIO()
+    next_start = 0
+    for match in re.finditer('<.*?>', text):
+        (start, end) = match.span()
+        buf.write(' ')
+        buf.write(text[next_start:start])
+        next_start = end
+    buf.write(' ')
+    buf.write(text[next_start:])
+    return re.split(r'\b[^\w\-\']+\b', buf.getvalue().strip())
+
+
+def index(l, item, start):
+    try:
+        return l.index(item, start)
+    except ValueError:
+        return -1
+
+
+def match_lists(org, target):
+    max_match_count = 0
+    next_index = -1
+    while True:
+        # First word must match case
+        next_index = index(target, org[0], next_index + 1)
+        if next_index < 0:
+            break
+        next_count = 1
+        for i in range(1, len(org)):
+            if next_index + i >= len(target) or org[i].lower() != target[next_index + i].lower():
+                continue
+            next_count += 1
+        max_match_count = max(max_match_count, next_count)
+    return max_match_count / len(org)
+
+
+def infer_organizer(organizers_list, specified_org, title, description):
+    d_words = strip_html_tags_and_split(title + ' ' + description if not specified_org else specified_org)
+    best_match = 0
+    matches = []
+    matched_organizer = None
+    for x in organizers_list:
+        match = match_lists(strip_html_tags_and_split(x['organizer']), d_words)
+        if match > best_match and match > .65:
+            best_match = match
+            matches.append(match)
+            matched_organizer = x
+    if best_match == 0:
+        return None
+    if len(matches) > 1:
+        print("Warning: multiple organizer matches: ", matches)
+    return matched_organizer
