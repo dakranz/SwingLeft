@@ -159,7 +159,9 @@ def update_calendar(path):
             if len(tag_ids) > 0:
                 post_data['tags'] = {'id': tag_ids[0]}
             else:
-                post_data['tags'] = {}
+                pass
+                # Do not remove tags until there is a better tag inference strategy
+                # post_data['tags'] = {}
             if len(category_ids) > 0:
                 post_data['categories'] = {'id': category_ids[0]}
             else:

@@ -43,7 +43,8 @@ def mobilize_to_calendar(event):
     text = event['title'] + ' ' + event['description']
     the_events_calendar.add_state_categories(categories, text)
     the_events_calendar.add_activity_categories(categories, text, event['title'])
-    the_events_calendar.add_tags(tags, text)
+    # We don't infer tags from mobilize events yet
+    # the_events_calendar.add_tags(tags, text)
     if the_events_calendar.has_real_venue(categories):
         if city and state:
             event_name = '{}, {} - {}'.format(city.upper(), state, event['title'])

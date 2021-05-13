@@ -3,6 +3,7 @@ import csv
 import datetime
 from dateutil import parser
 import io
+import json
 import logging
 import markdown
 from pprint import pformat
@@ -24,6 +25,8 @@ _parser.add_argument("-u", "--update_timestamp", action="store_true",
                     help="Update slack-timestamp.txt to current time.")
 _parser.add_argument("-s", "--search",
                     help="Process only messages with search string in title.")
+_parser.add_argument("-f", "--file",
+                    help="Process messages saved in json file.")
 _parser.add_argument("--old", action="store_true",
                     help="Process events that have already passed.")
 args = _parser.parse_args()
@@ -166,7 +169,14 @@ def infer_organizer(organizers, specified_org, title, description):
 # Optional: "Organizer:" followed by the organizer name
 def slack_event_feed(start, channel):
     messages = slack.get_messages(channel, start)
+    with open('slack-events.json', 'w', encoding='utf-8') as out:
+        json.dump([message for message in messages], out, ensure_ascii=False, indent=4)
     process_slack_messages(messages)
+
+
+def slack_event_feed_from_file(file):
+    with open(file, encoding='utf-8') as stream:
+        process_slack_messages(json.load(stream))
 
 
 def process_slack_messages(messages):
@@ -261,7 +271,10 @@ def process_slack_messages(messages):
 
 
 def main():
-    channel = '1-upcoming-events-for-the-next-month'
+    if args.file:
+        slack_event_feed_from_file(args.file)
+        exit(0)
+    channel = '1-upcoming-events'
     if len([x for x in [args.hours, args.timestamp, args.update_timestamp] if x]) != 1:
         print('Must specify exactly one of -t or --hours')
         exit(1)
