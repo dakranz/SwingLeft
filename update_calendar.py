@@ -1,13 +1,13 @@
 import argparse
 import base64
 import csv
+import datetime
 import logging
 import requests
 from pprint import pformat
 
 import api_key
 import events
-import the_events_calendar
 
 parser = argparse.ArgumentParser()
 parser.add_argument("csv_file", help="csv file with event data")
@@ -101,15 +101,23 @@ def get_category_ids(metadata, slugs):
     return [get_category_id(metadata, slug) for slug in slugs]
 
 
-def get_existing_event(event_map, post_data):
+def get_existing_event(event_map, post_data, processed_mobilize_ids):
     website = post_data['website']
     if 'mobilize.us' not in website:
         return None
     mobilize_id = events.get_event_id(website)
     if mobilize_id not in event_map:
         return None
-    for event in event_map[mobilize_id]:
-        if event['start_date'] == post_data['start_date'] and event['end_date'] == post_data['end_date']:
+    # We try to match mobilize slots and calendar events with the same day. Each time we find an event, we remove it
+    # from the list of calendar events for that mobilize event. After all slots for a mobilize event have been
+    # processed, any left over calendar events are orphaned and can be deleted.
+    processed_mobilize_ids.add(mobilize_id)
+    # The dates that come in here are a date string and time string separated by whitespace.
+    start_date = post_data['start_date'].split()[0]
+    calendar_events = event_map[mobilize_id]
+    for event in calendar_events:
+        if event['start_date'].split()[0] == start_date:
+            calendar_events.remove(event)
             return event
     return None
 
@@ -126,6 +134,7 @@ def update_calendar(path):
         headers = next(reader)
         calendar_metadata = events.get_calendar_metadata()
         event_map = events.get_event_map()
+        processed_mobilize_ids = set()
         for event in reader:
             title = event[headers.index('Event Name')]
             description = event[headers.index('Event Description')]
@@ -170,8 +179,12 @@ def update_calendar(path):
                 post_data['venue'] = {'id': venue_id}
             if organizer_id:
                 post_data['organizer'] = {'id': organizer_id}
-            event = get_existing_event(event_map, post_data)
+            event = get_existing_event(event_map, post_data, processed_mobilize_ids)
             if event is not None:
+                # Do not update manually created events
+                if str(event['author']) != api_key.wordpress_automation_author_id:
+                    logger.info("Skipping manually created event %s: %s", event['id'], event['rest_url'])
+                    continue
                 post_data['id'] = event['id']
                 logger.info("Updating %s: %s", event['id'], event['rest_url'])
             else:
@@ -189,6 +202,12 @@ def update_calendar(path):
             returned_data = r.json()
             logger.info("Returned: %s %s", returned_data['id'], returned_data['url'])
             logger.debug(pformat(returned_data))
+        # The sublists here contain events that no longer had a slot in mobilize and should be deleted.
+        now = datetime.datetime.now()
+        for mobilize_id in processed_mobilize_ids:
+            for calendar_event in event_map[mobilize_id]:
+                if datetime.datetime.strptime(calendar_event['start_date'], '%Y-%m-%d %H:%M:%S') > now:
+                    logger.warning("Need to delete: %s", calendar_event['url'])
 
 
 if __name__ == '__main__':

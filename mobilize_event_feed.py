@@ -26,7 +26,7 @@ entry_point = 'https://api.mobilize.us/v1/'
 api_header = {'Content-Type': 'application/json'}
 
 
-skip_list = {}
+skip_list = [389926]
 
 
 def get_mobilize_event(url):
@@ -62,8 +62,8 @@ def process_event_feed(event_list):
     records = []
     for event in event_list:
         title = event['title']
-        if title in skip_list and event['id'] == skip_list[title]:
-            print('Skipping:' + title)
+        if event['id'] in skip_list:
+            print('Skipping: ' + event['title'])
             continue
         event_data = mobilize_to_calendar.mobilize_to_calendar(event)
         if event_data is not None:

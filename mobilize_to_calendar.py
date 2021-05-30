@@ -1,4 +1,5 @@
 import datetime
+import logging
 import markdown
 
 import events
@@ -7,6 +8,12 @@ import the_events_calendar
 
 entry_point = 'https://api.mobilize.us/v1/'
 api_header = {'Content-Type': 'application/json'}
+
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+sh = logging.StreamHandler()
+sh.setFormatter(logging.Formatter('%(levelname)s - %(message)s'))
+logger.addHandler(sh)
 
 
 def mobilize_to_calendar(event):
@@ -61,7 +68,7 @@ def mobilize_to_calendar(event):
     if len(time_slots) > 5:
         interval = time_slots[1]['start_date'] - time_slots[0]['start_date']
         if 23 * 3600 < interval < 25 * 3600:
-            print('Skipping daily event: ', event['browser_url'])
+            logger.info('Skipping daily event: %s', event['browser_url'])
             return None
     event_records = []
     for time_slot in time_slots:
@@ -81,5 +88,5 @@ def mobilize_to_calendar(event):
     num = "[{}]".format(len(event_records))
     created = datetime.datetime.fromtimestamp(event['created_date'])
     modified = datetime.datetime.fromtimestamp(event['modified_date'])
-    print(created, modified, num, event['title'], event_url)
+    logger.info("%s %s %s %s %s", created, modified, num, event['title'], event_url)
     return event_records

@@ -1,10 +1,17 @@
 import base64
 import datetime
 import json
+import logging
 import requests
 import urllib.parse
 
 import api_key
+
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+sh = logging.StreamHandler()
+sh.setFormatter(logging.Formatter('%(levelname)s - %(message)s'))
+logger.addHandler(sh)
 
 use_saved_data = False
 
@@ -45,7 +52,7 @@ def get_mobilize_events():
     events = []
     url = 'https://api.mobilize.us/v1/organizations/1535/events?per_page=100&timeslot_start=gt_now'
     while True:
-        print(url)
+        logger.info(url)
         r = requests.get(url)
         j_data = r.json()
         for event in j_data['data']:
@@ -66,12 +73,12 @@ def get_calendar_events():
     url = calendar_api_base_url + 'events?status=publish&per_page=50&start_date=' + now
     count = None
     while True:
-        print(url)
+        logger.info(url)
         r = requests.get(url, headers=calendar_headers)
         j_data = r.json()
         if count is None:
             count = j_data['total']
-            print(count)
+            logger.info(count)
         events.extend(j_data['events'])
         if 'next_rest_url' not in j_data:
             break
@@ -96,13 +103,13 @@ def get_calendar_metadata(kinds=('categories', 'tags', 'venues', 'organizers')):
         data = []
         count = None
         while True:
-            print(url)
+            logger.info(url)
             r = requests.get(url, headers=calendar_headers)
             assert r.ok
             j_data = r.json()
             if count is None:
                 count = j_data['total']
-                print(count)
+                logger.info(count)
             data.extend(j_data[kind])
             if 'next_rest_url' not in j_data:
                 break
