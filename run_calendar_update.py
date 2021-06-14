@@ -59,7 +59,7 @@ def subprocess_run(command):
 def do_calendar_update(kind, log_dir):
     status = success
     # command = ["python", kind + "_event_feed.py", "-t"]
-    command = ["python", kind + "_event_feed.py", "--hours", "2"]
+    command = ["python", kind + "_event_feed.py", "--update_timestamp", "--hours", "12"]
     logging.info('Running: %s', ' '.join(command))
     result = subprocess_run(command)
     log = result.stderr
@@ -93,7 +93,8 @@ def do_calendar_update(kind, log_dir):
 
 def run_calendar_update():
     buf = io.StringIO()
-    logging.basicConfig(level=logging.INFO, handlers=[logging.FileHandler("run.log", "w"),
+    file_handler = logging.FileHandler("run.log", "w")
+    logging.basicConfig(level=logging.INFO, handlers=[file_handler,
                                                       logging.StreamHandler(buf),
                                                       logging.StreamHandler()])
     current_time = datetime.datetime.now().strftime("%Y-%m-%d %H;%M;%S")
@@ -101,7 +102,6 @@ def run_calendar_update():
     os.mkdir(current_time)
     slack_status = mobilize_status = errors
     try:
-        logging.info("Downloading timestamps")
         download_file('mobilize-timestamp.txt')
         download_file('slack-timestamp.txt')
         slack_status = do_calendar_update('slack', current_time)
@@ -111,13 +111,11 @@ def run_calendar_update():
         if mobilize_status == errors:
             logging.error('Mobilize update failed')
         if slack_status != errors and mobilize_status != errors:
-            logging.info("Uploading timestamps")
             upload_file('mobilize-timestamp.txt')
             upload_file('slack-timestamp.txt')
     except Exception as e:
         logging.error('%s', e)
     shutil.copy('run.log', current_time)
-    logging.info('uploading logs')
     log_url = ""
     channel = 'automation-test'
     try:
@@ -132,6 +130,8 @@ def run_calendar_update():
         report_results('Warnings', channel, current_time, log_url, buf.getvalue())
     else:
         report_results('Succeeded', channel, current_time, log_url, None)
+    file_handler.close()
+    os.remove('run.log')
 
 
 if __name__ == '__main__':

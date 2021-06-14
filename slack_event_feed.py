@@ -276,7 +276,7 @@ def main():
         slack_event_feed_from_file(args.file)
         exit(0)
     channel = '1-upcoming-events'
-    if len([x for x in [args.hours, args.timestamp, args.update_timestamp] if x]) != 1:
+    if len([x for x in [args.hours, args.timestamp] if x]) != 1:
         print('Must specify exactly one of -t or --hours')
         exit(1)
     now = int(datetime.datetime.now().timestamp())

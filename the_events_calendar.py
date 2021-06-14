@@ -131,20 +131,23 @@ def match_lists(org, target):
                 continue
             next_count += 1
         max_match_count = max(max_match_count, next_count)
-    return max_match_count / len(org)
+    return max_match_count / len(org), max_match_count
 
 
 def infer_organizer(organizers_list, specified_org, title, description):
     d_words = strip_html_tags_and_split(title + ' ' + description if not specified_org else specified_org)
     best_match = 0
+    len_best_match = 0
     matches = []
     matched_organizer = None
     for x in organizers_list:
-        match = match_lists(strip_html_tags_and_split(x['organizer']), d_words)
-        if match > best_match and match > .65:
-            best_match = match
-            matches.append(match)
-            matched_organizer = x
+        match, len_match = match_lists(strip_html_tags_and_split(x['organizer']), d_words)
+        if match >= best_match and match > .65:
+            if match > best_match or len_match > len_best_match:
+                best_match = match
+                len_best_match = len_match
+                matches.append(match)
+                matched_organizer = x
     if best_match == 0:
         return None
     if len(matches) > 1:
