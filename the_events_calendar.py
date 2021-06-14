@@ -23,6 +23,16 @@ activities = {"canvassing": ["canvas"],
               "briefing": ["briefing"]
               }
 
+mobilize_event_type_map = {'CANVASS': 'canvassing', 'PHONE_BANK': 'phone-banking', 'TEXT_BANK': 'texting',
+                           'MEETING': None, 'COMMUNITY': None, 'FUNDRAISER': 'fundraiser', 'MEET_GREET': None,
+                           'HOUSE_PARTY': None, 'VOTER_REG': None, 'TRAINING': 'training',
+                           'FRIEND_TO_FRIEND_OUTREACH': None, 'DEBATE_WATCH_PARTY': None, 'ADVOCACY_CALL': None,
+                           'RALLY': None, 'TOWN_HALL': None, 'OFFICE_OPENING': None, 'BARNSTORM': None,
+                           'SOLIDARITY_EVENT': None, 'COMMUNITY_CANVASS': 'canvassing', 'SIGNATURE_GATHERING': None,
+                           'CARPOOL': None, 'WORKSHOP': None, 'PETITION': None, 'AUTOMATED_PHONE_BANK': 'phone-banking',
+                           'LETTER_WRITING': 'letters-postcards', 'LITERATURE_DROP_OFF': None, 'VISIBILITY_EVENT': None,
+                           'SOCIAL_MEDIA_CAMPAIGN': None, 'POSTCARD_WRITING': 'letters-postcards', 'OTHER': None}
+
 
 def has_real_venue(categories):
     return "letters-postcards" in categories
@@ -41,6 +51,10 @@ states = {"arizona-events": ["AZ", "Arizona"],
           "texas-events": ["TX", "Texas"],
           "wisconsin-events": ["WI", "Wisconsin"]
           }
+
+
+def lookup_mobilize_event_type(mobilize_event_type):
+    return mobilize_event_type_map.get(mobilize_event_type, None)
 
 
 def add_state_categories(category_list, text):

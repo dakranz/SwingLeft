@@ -186,6 +186,8 @@ def update_calendar(path):
                     logger.info("Skipping manually created event %s: %s", event['id'], event['rest_url'])
                     continue
                 post_data['id'] = event['id']
+                # Do not overwrite an inferred category since it is not reliable enough and may have been fixed manually
+                post_data.pop('categories', None)
                 logger.info("Updating %s: %s", event['id'], event['rest_url'])
             else:
                 logger.info("Creating: %s %s %s", post_data['start_date'], post_data['title'], post_data['website'])

@@ -16,7 +16,16 @@ sh.setFormatter(logging.Formatter('%(levelname)s - %(message)s'))
 logger.addHandler(sh)
 
 
-def mobilize_to_calendar(event):
+def get_calendar_tags(mobilize_tags, calendar_tags):
+    for mobilize_tag in mobilize_tags:
+        mobilize_tag_name = mobilize_tag['name'].lower()
+        for calendar_tag in calendar_tags:
+            if mobilize_tag_name == calendar_tag['name'].lower():
+                return [calendar_tag['name']]
+    return []
+
+
+def mobilize_to_calendar(event, calendar_tags):
     event_url = event['browser_url']
     event_organizers = event['sponsor']['name']
     # Mobilize uses markdown. There are many variants but we hope this markdown package will do no harm.
@@ -39,7 +48,9 @@ def mobilize_to_calendar(event):
     if not (city or zip_code or sponsor in events.inside_orgs):
         return None
     categories = []
-    tags = []
+    tags = get_calendar_tags(event['tags'], calendar_tags)
+    if len(tags) == 0:
+        logger.info("No tag found for: %s", event_url)
     region = ''
     if state in regions.state_categories:
         region = regions.state_categories[state]
@@ -49,9 +60,12 @@ def mobilize_to_calendar(event):
         region = regions.get_ma_region_by_zip(zip_code)
     text = event['title'] + ' ' + event['description']
     the_events_calendar.add_state_categories(categories, text)
-    the_events_calendar.add_activity_categories(categories, text, event['title'])
-    # We don't infer tags from mobilize events yet
-    # the_events_calendar.add_tags(tags, text)
+    if 'event_type' not in event:
+        the_events_calendar.add_activity_categories(categories, text, event['title'])
+    else:
+        category = the_events_calendar.lookup_mobilize_event_type(event['event_type'])
+        if category is not None:
+            categories.append(category)
     if the_events_calendar.has_real_venue(categories):
         if city and state:
             event_name = '{}, {} - {}'.format(city.upper(), state, event['title'])
@@ -88,5 +102,5 @@ def mobilize_to_calendar(event):
     num = "[{}]".format(len(event_records))
     created = datetime.datetime.fromtimestamp(event['created_date'])
     modified = datetime.datetime.fromtimestamp(event['modified_date'])
-    logger.info("%s %s %s %s %s", created, modified, num, event['title'], event_url)
+    logger.info("%s %s %s %s %s %s", created, modified, num, event['title'], event_url, event.get('event_type', ''))
     return event_records

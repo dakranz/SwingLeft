@@ -59,13 +59,14 @@ def mobilize_event_feed(start):
 def process_event_feed(event_list):
     current_date = datetime.datetime.now().strftime("%Y-%m-%d %H;%M;%S")
     event_list.sort(key=operator.itemgetter('created_date'), reverse=True)
+    all_tags = events.get_calendar_metadata('tags')['tags']
     records = []
     for event in event_list:
         title = event['title']
         if event['id'] in skip_list:
             print('Skipping: ' + event['title'])
             continue
-        event_data = mobilize_to_calendar.mobilize_to_calendar(event)
+        event_data = mobilize_to_calendar.mobilize_to_calendar(event, all_tags)
         if event_data is not None:
             records.extend(event_data)
     if len(records) == 0:
@@ -97,7 +98,7 @@ def main():
         process_event_feed([get_mobilize_event(url) for url in args.url])
         return
     if update_timestamp:
-        shutil.copy('slack-timestamp.txt', 'slack-timestamp-last.txt')
+        shutil.copy('mobilize-timestamp.txt', 'mobilize-timestamp-last.txt')
         with open('mobilize-timestamp.txt', 'w') as f:
             f.write(str(now))
 

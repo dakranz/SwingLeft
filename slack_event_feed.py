@@ -157,7 +157,7 @@ def infer_organizer(organizers, specified_org, title, description):
     if organizer is not None:
         logger.info("Organizer: %s", organizer['organizer'])
         return organizer['organizer']
-    logger.warning("No organizer: %s", specified_org)
+    logger.info("No organizer: %s", specified_org)
     return ''
 
 
@@ -235,7 +235,8 @@ def process_slack_messages(messages):
         if organizers is None:
             organizers = events.get_calendar_metadata('organizers')['organizers']
         organizer = infer_organizer(organizers, organizer, title, description)
-        description += '\n\nImported from NewsMAGIC'
+        news_magic_link = '<a target=_blank href=http://news-magic.org/>News-MAGIC.org</a>'
+        description += '\n\nFrom the Massachusetts Grassroots Information Center at {}'.format(news_magic_link)
         logger.info(title)
         if len(date_lines) == 0:
             logger.warning("No date found: ts=%s", ts)
