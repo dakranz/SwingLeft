@@ -134,10 +134,12 @@ def remove_markdown(s):
 # in angle brackets. The most important is a hyperlink which can also have some text following a vertical bar. So we
 # pull out all the angle bracket things and convert to <a> format, and then transform the whole thing to html using
 # the markdown package. We don't have to worry about the escaping of '<', '>', and '&' which is required in slack
-# because it encodes those as HTML entities already.
+# because it encodes those as HTML entities already. We strip :emoji: as it is not worth the effort to convert.
 # This is all documented at: https://api.slack.com/reference/surfaces/formatting
 # TODO: handle the other funky things that could follow a '<'
 def convert_description(description):
+    # Strip out emoji
+    description = re.sub(r':\w+:', ' ', description)
     buf = io.StringIO()
     next_start = 0
     for match in re.finditer('<.*?>', description):

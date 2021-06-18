@@ -142,7 +142,7 @@ def infer_organizer(organizers_list, specified_org, title, description):
     matched_organizer = None
     for x in organizers_list:
         match, len_match = match_lists(strip_html_tags_and_split(x['organizer']), d_words)
-        if match >= best_match and match > .65:
+        if match >= best_match and match >= .75:
             if match > best_match or len_match > len_best_match:
                 best_match = match
                 len_best_match = len_match
