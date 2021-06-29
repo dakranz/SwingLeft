@@ -1,26 +1,45 @@
+import argparse
 import csv
-from operator import itemgetter
-import os
-from pathlib import Path
-import sys
-from zipfile import ZipFile
+import datetime
+from dateutil import parser
+import shutil
+
+import action_network
+
+_parser = argparse.ArgumentParser()
+_parser.add_argument("-s", "--start", help="Timestamp or datetime for oldest record to process.")
+_parser.add_argument("-e", "--end", help="Timestamp or datetime for newest record to process.")
+_parser.add_argument("-t", "--timestamp", action="store_true",
+                    help="Use value in mobilize-action-network-timestamp.txt as oldest event to process, current time "
+                         "as newest")
+_parser.add_argument("shift_export",
+                    help="Shift export csv file from mobilize.")
+_parser.add_argument("event_export",
+                    help="Event export csv file from mobilize.")
+_parser.add_argument("-u", "--update_timestamp", action="store_true",
+                    help="Update mobilize-action-network-timestamp.txt to current time.")
+args = _parser.parse_args()
 
 
-# Avoid funky pathnames for windows
-def sanitize_path(txt):
-    return ''.join(c if c.isalnum() or c in '-. _' else ';' for c in txt)
+def create_event_map(event_path):
+    event_map = {}
+    with open(event_path, newline='', encoding='utf-8') as ifile:
+        reader = csv.reader(ifile)
+        iheaders = next(reader)
+        tags_index = iheaders.index('tags')
+        eid_index = iheaders.index('id')
 
-# Take a csv file of events that was exported from MobilizeAmerica and generate a zip file containing cvs files that
-# can be uploaded into ActionNetwork. We create a separate file for each (event id, event start time). The csv files
-# are named to include the event id, the tag that should be used when uploading into ActionNetwork, the start time,
-# and a prefix of the name of the event. We are assuming that the export files are utf-8.
+        for record in reader:
+            if record[eid_index] not in event_map:
+                event_map[record[eid_index]] = {'tags': set(record[tags_index].split(sep='|'))}
+    return event_map
 
 
-def mobilize_america_to_action_network(path):
-    oheaders = ('first_name', 'last_name', 'email', 'zip_code', 'phone')
-    ofiles = {}
-    manifest_records = []
-    with open(Path(path), newline='', encoding='utf-8') as ifile:
+# Upload records to action network from mobilize shift data. Start and end are as %Y-%m-%d %H:%M:%S
+def mobilize_america_to_action_network(shift_path, event_path, start, end):
+    event_map = create_event_map(event_path)
+    people = {}
+    with open(shift_path, newline='', encoding='utf-8') as ifile:
         records = []
         reader = csv.reader(ifile)
         iheaders = next(reader)
@@ -30,58 +49,64 @@ def mobilize_america_to_action_network(path):
         zip_index = iheaders.index('zip')
         phone_index = iheaders.index('phone')
         eid_index = iheaders.index('event id')
-        ename_index = iheaders.index('event name')
         start_index = iheaders.index('start')
-        organization_index = iheaders.index('event organization name')
-        manifest_headers = ['Event', 'Filename', 'Date', 'Organization', 'Event Id', 'Tags']
 
         for record in reader:
-            records.append(record)
-        records.sort(key=itemgetter(eid_index, start_index))
-
-        current_eid = None
-        current_start_date = None
-        out_records = None
-        i = 0
-        while i < len(records):
-            record = records[i]
-            if record[eid_index] != current_eid or record[start_index][:10] != current_start_date:
-                current_eid = record[eid_index]
-                current_start_date = record[start_index][:10]
-                out_records = []
-                ofile = sanitize_path('{}-{}-{}.csv'.format(current_start_date, record[ename_index][:40],
-                                      current_eid))
-                ofiles[ofile] = out_records
-                manifest_records.append([record[ename_index], ofile, current_start_date,
-                                         record[organization_index], current_eid, ''])
-            zip_code = record[zip_index]
-            if len(zip_code) == 4:
-                zip_code = '0' + zip_code
-            out_records.append([record[fn_index], record[ln_index], record[email_index],
-                                zip_code, record[phone_index]])
-            i += 1
-
-        os.chdir('generated')
-        assert len(ofiles) == len(manifest_records)
-        for fname, records in ofiles.items():
-            assert not os.path.exists(fname), fname
-            with open(Path(fname), 'w', newline='', encoding='utf-8') as ofile:
-                writer = csv.writer(ofile)
-                writer.writerow(oheaders)
-                writer.writerows(records)
-        manifest = 'manifest.csv'
-        # Sort by event name
-        manifest_records.sort(key=itemgetter(0))
-        with open(Path(manifest), 'w', newline='', encoding='utf-8') as ofile:
-            writer = csv.writer(ofile)
-            writer.writerow(manifest_headers)
-            writer.writerows(manifest_records)
-        ofiles[manifest] = []
-
-        zipname = path[:-4] + '.zip'
-        with ZipFile(Path(zipname), 'w') as myzip:
-            for f in ofiles:
-                myzip.write(f)
+            if record[start_index] <= start or record[start_index] > end:
+                continue
+            print(record[start_index])
+            new_tags = set(event_map[record[eid_index]]['tags'])
+            email = record[email_index]
+            people_entry = people.get(email, None)
+            if people_entry is not None:
+                people_entry['tags'].update(new_tags)
+            else:
+                zip_code = record[zip_index]
+                if len(zip_code) == 4:
+                    zip_code = '0' + zip_code
+                people[email] = {'fn': record[fn_index], 'ln': record[ln_index], 'zip': zip_code,
+                                 'phone': record[phone_index], 'tags': new_tags}
+    for email, data in people.items():
+        print(email, data['fn'], data['ln'], data['phone'], data['zip'], data['tags'])
+        person = {"person": {"family_name": data['ln'],
+                             "given_name": data['fn'],
+                             "email_addresses": [{"address": email}],
+                             "custom_fields": {"Phone": data['phone']}
+                             },
+                  "add_tags": [tag for tag in data['tags']]
+                  }
 
 
-mobilize_america_to_action_network(sys.argv[1])
+def string_to_date_string(s):
+    try:
+        date_time = datetime.datetime.fromtimestamp(float(s))
+    except ValueError:
+        date_time = parser.parse(s)
+    return date_time.strftime("%Y-%m-%d %H:%M:%S")
+
+
+def main():
+    if not (args.timestamp or args.start and args.end):
+        print('Must specify -t or --start and --end')
+        exit(1)
+    now = datetime.datetime.now().timestamp()
+    if args.timestamp:
+        with open('mobilize-action-network-timestamp.txt') as f:
+            try:
+                start = string_to_date_string(f.read().strip())
+                end = string_to_date_string(now)
+            except FileNotFoundError:
+                print('No timestamp file')
+                exit(1)
+    else:
+        start = string_to_date_string(args.start)
+        end = string_to_date_string(args.end)
+    mobilize_america_to_action_network(args.shift_export, args.event_export, start, end)
+    if args.timestamp or args.update_timestamp:
+        shutil.copy('mobilize-action-network-timestamp.txt', 'mobilize-action-network-timestamp-last.txt')
+        with open('mobilize-action-network-timestamp.txt', 'w') as f:
+            f.write(str(now))
+
+
+if __name__ == '__main__':
+    main()
