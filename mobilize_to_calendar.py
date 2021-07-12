@@ -25,9 +25,20 @@ def get_calendar_tags(mobilize_tags, calendar_tags):
     return []
 
 
+# Handle cases where another org is using the swing left mobilize and other random cases where the calendar org should
+# be different from the sponsor as reported by mobilize.
+def get_event_organizer(event):
+    if any([tag['name'] == 'Org: All In For Nc' for tag in event['tags']]):
+        return 'All in for NC'
+    org = event['sponsor']['name']
+    if org == 'JP Progressives':
+        return 'Jamaica Plain Progressives'
+    return org
+
+
 def mobilize_to_calendar(event, calendar_tags):
     event_url = event['browser_url']
-    event_organizers = event['sponsor']['name']
+    event_organizer = get_event_organizer(event)
     # Mobilize uses markdown. There are many variants but we hope this markdown package will do no harm.
     # https://github.com/Python-Markdown/markdown
     event_description = markdown.markdown(event['description'])
@@ -92,7 +103,7 @@ def mobilize_to_calendar(event, calendar_tags):
         event_start_time = start.strftime("%H:%M:00")
         event_end_date = end.strftime("%Y-%m-%d")
         event_end_time = end.strftime("%H:%M:00")
-        event_record = [event_name, event_description, event_organizers, event_venue_name, event_start_date,
+        event_record = [event_name, event_description, event_organizer, event_venue_name, event_start_date,
                         event_start_time, event_end_date, event_end_time, event_url, city, state,
                         ','.join(categories), ','.join(tags), zip_code, region]
         # Accept full events for now
