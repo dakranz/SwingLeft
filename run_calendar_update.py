@@ -1,4 +1,5 @@
 import api_key
+import argparse
 import datetime
 import dropbox
 import io
@@ -11,6 +12,13 @@ import subprocess
 success = 0
 warnings = 1
 errors = 2
+
+_parser = argparse.ArgumentParser()
+_parser.add_argument("-u", "--upload", action="store_true",
+                    help="Upload local timestamp files to dropbox and exit")
+_parser.add_argument("-d", "--download", action="store_true",
+                    help="Download dropbox timestamp files and exit")
+args = _parser.parse_args()
 
 
 def upload_folder(local_path):
@@ -58,8 +66,8 @@ def subprocess_run(command):
 
 def do_calendar_update(kind, log_dir):
     status = success
-    # command = ["python", kind + "_event_feed.py", "-t"]
-    command = ["python", kind + "_event_feed.py", "--update_timestamp", "--hours", "12"]
+    command = ["python", kind + "_event_feed.py", "-t"]
+    # command = ["python", kind + "_event_feed.py", "--update_timestamp", "--hours", "24"]
     logging.info('Running: %s', ' '.join(command))
     result = subprocess_run(command)
     log = result.stderr
@@ -91,6 +99,16 @@ def do_calendar_update(kind, log_dir):
     return status
 
 
+def download_timestamps():
+    download_file('mobilize-timestamp.txt')
+    download_file('slack-timestamp.txt')
+
+
+def upload_timestamps():
+    upload_file('mobilize-timestamp.txt')
+    upload_file('slack-timestamp.txt')
+
+
 def run_calendar_update():
     buf = io.StringIO()
     file_handler = logging.FileHandler("run.log", "w")
@@ -102,8 +120,7 @@ def run_calendar_update():
     os.mkdir(current_time)
     slack_status = mobilize_status = errors
     try:
-        download_file('mobilize-timestamp.txt')
-        download_file('slack-timestamp.txt')
+        download_timestamps()
         slack_status = do_calendar_update('slack', current_time)
         if slack_status == errors:
             logging.error('Slack update failed')
@@ -111,8 +128,7 @@ def run_calendar_update():
         if mobilize_status == errors:
             logging.error('Mobilize update failed')
         if slack_status != errors and mobilize_status != errors:
-            upload_file('mobilize-timestamp.txt')
-            upload_file('slack-timestamp.txt')
+            upload_timestamps()
     except Exception as e:
         logging.error('%s', e)
     shutil.copy('run.log', current_time)
@@ -135,4 +151,9 @@ def run_calendar_update():
 
 
 if __name__ == '__main__':
-    run_calendar_update()
+    if args.upload:
+        upload_timestamps()
+    elif args.download:
+        download_timestamps()
+    else:
+        run_calendar_update()
