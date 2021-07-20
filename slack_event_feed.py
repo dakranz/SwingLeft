@@ -191,7 +191,7 @@ def process_slack_messages(messages):
         logger.debug(pformat(message))
         attachments = message.get('attachments', None)
         if attachments is None:
-            logger.warning("Message has no attachment: ts=%s", ts)
+            logger.info("Message has no attachment: ts=%s", ts)
             continue
         description = '\n\n'.join([a['text'] for a in attachments])
         header_block = message['text'].splitlines()
