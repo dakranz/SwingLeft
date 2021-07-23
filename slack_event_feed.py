@@ -193,7 +193,11 @@ def process_slack_messages(messages):
         if attachments is None:
             logger.info("Message has no attachment: ts=%s", ts)
             continue
-        description = '\n\n'.join([a['text'] for a in attachments])
+        attachment_text = [a.get('text', "") for a in attachments]
+        if not any(attachment_text):
+            logger.warning("Attachments have no text: ts=%s %s", ts, message['text'])
+            continue
+        description = '\n\n'.join(attachment_text)
         header_block = message['text'].splitlines()
         if len(header_block) == 0:
             logger.warning("Message has no title: ts=%s", ts)

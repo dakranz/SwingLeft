@@ -18,6 +18,8 @@ _parser.add_argument("-u", "--upload", action="store_true",
                     help="Upload local timestamp files to dropbox and exit")
 _parser.add_argument("-d", "--download", action="store_true",
                     help="Download dropbox timestamp files and exit")
+_parser.add_argument("-l", "--local", action="store_true",
+                    help="Use local timestamp files and do not uploads log files to drobbox or send slack messages.")
 args = _parser.parse_args()
 
 
@@ -67,10 +69,11 @@ def subprocess_run(command):
 def do_calendar_update(kind, log_dir):
     status = success
     command = ["python", kind + "_event_feed.py", "-t"]
-    # command = ["python", kind + "_event_feed.py", "--update_timestamp", "--hours", "24"]
+    # command = ["python", kind + "_event_feed.py", "--hours", "24"]
     logging.info('Running: %s', ' '.join(command))
     result = subprocess_run(command)
     log = result.stderr
+    print(log)
     with open('{}/{}-feed.log'.format(log_dir, kind), 'w') as out:
         out.write(log)
     if result.returncode != 0 or 'ERROR - ' in log:
@@ -83,12 +86,13 @@ def do_calendar_update(kind, log_dir):
         return status
     if kind == 'slack':
         shutil.move('slack-events.json', log_dir)
-    # command = ["python", "update_calendar.py", csv_file]
-    command = ["python", "update_calendar.py", "-c", "-y", csv_file]
+    command = ["python", "update_calendar.py", csv_file]
+    # command = ["python", "update_calendar.py", "-y", csv_file]
     logging.info('Running %s', ' '.join(command))
     result = subprocess_run(command)
     shutil.move(csv_file, log_dir)
     log = result.stderr
+    print(log)
     with open('{}/{}-update.log'.format(log_dir, kind), 'w') as out:
         out.write(log)
     if result.returncode != 0 or 'ERROR - ' in log:
@@ -109,7 +113,7 @@ def upload_timestamps():
     upload_file('slack-timestamp.txt')
 
 
-def run_calendar_update():
+def run_calendar_update(is_local):
     buf = io.StringIO()
     file_handler = logging.FileHandler("run.log", "w")
     logging.basicConfig(level=logging.INFO, handlers=[file_handler,
@@ -120,32 +124,34 @@ def run_calendar_update():
     os.mkdir(current_time)
     slack_status = mobilize_status = errors
     try:
-        download_timestamps()
+        if not is_local:
+            download_timestamps()
         slack_status = do_calendar_update('slack', current_time)
         if slack_status == errors:
             logging.error('Slack update failed')
         mobilize_status = do_calendar_update('mobilize', current_time)
         if mobilize_status == errors:
             logging.error('Mobilize update failed')
-        if slack_status != errors and mobilize_status != errors:
+        if not is_local and slack_status != errors and mobilize_status != errors:
             upload_timestamps()
     except Exception as e:
         logging.error('%s', e)
     shutil.copy('run.log', current_time)
-    log_url = ""
-    channel = 'automation-test'
-    try:
-        log_url = upload_folder(current_time)
-    except Exception as e:
-        logging.error('Log upload failed: %s', e)
-        report_results('Uploading logs failed', channel, current_time, log_url, buf.getvalue())
-        return
-    if slack_status == errors or mobilize_status == errors:
-        report_results('Failed', channel, current_time, log_url, buf.getvalue())
-    elif slack_status == warnings or mobilize_status == warnings:
-        report_results('Warnings', channel, current_time, log_url, buf.getvalue())
-    else:
-        report_results('Succeeded', channel, current_time, log_url, None)
+    if not is_local:
+        log_url = ""
+        channel = 'automation'
+        try:
+            log_url = upload_folder(current_time)
+        except Exception as e:
+            logging.error('Log upload failed: %s', e)
+            report_results('Uploading logs failed', channel, current_time, log_url, buf.getvalue())
+            return
+        if slack_status == errors or mobilize_status == errors:
+            report_results('Failed', channel, current_time, log_url, buf.getvalue())
+        elif slack_status == warnings or mobilize_status == warnings:
+            report_results('Warnings', channel, current_time, log_url, buf.getvalue())
+        else:
+            report_results('Succeeded', channel, current_time, log_url, None)
     file_handler.close()
     os.remove('run.log')
 
@@ -156,4 +162,4 @@ if __name__ == '__main__':
     elif args.download:
         download_timestamps()
     else:
-        run_calendar_update()
+        run_calendar_update(args.local)
