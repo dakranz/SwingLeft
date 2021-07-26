@@ -5,6 +5,7 @@ import dropbox
 import io
 import logging
 import os
+import re
 import shutil
 import slack
 import subprocess
@@ -21,6 +22,21 @@ _parser.add_argument("-d", "--download", action="store_true",
 _parser.add_argument("-l", "--local", action="store_true",
                     help="Use local timestamp files and do not uploads log files to drobbox or send slack messages.")
 args = _parser.parse_args()
+
+dt_re = r'\d\d\d\d-\d\d-\d\d \d\d;\d\d;\d\d'
+
+
+def dt_to_pathname(dt):
+    return dt.strftime("%Y-%m-%d %H;%M;%S")
+
+
+def delete_old_logs():
+    a_week_ago = dt_to_pathname(datetime.datetime.now() - datetime.timedelta(weeks=1))
+    dbx = dropbox.dropbox_client.Dropbox(api_key.dropbox_key)
+    for entry in dbx.files_list_folder('').entries:
+        if re.match(dt_re, entry.name) and (entry.name < a_week_ago):
+            logging.info('Deleting %s', entry.name)
+            dbx.files_delete('/' + entry.name)
 
 
 def upload_folder(local_path):
@@ -119,7 +135,7 @@ def run_calendar_update(is_local):
     logging.basicConfig(level=logging.INFO, handlers=[file_handler,
                                                       logging.StreamHandler(buf),
                                                       logging.StreamHandler()])
-    current_time = datetime.datetime.now().strftime("%Y-%m-%d %H;%M;%S")
+    current_time = dt_to_pathname(datetime.datetime.now())
     logging.info("Log dir: %s", current_time)
     os.mkdir(current_time)
     slack_status = mobilize_status = errors
@@ -141,6 +157,7 @@ def run_calendar_update(is_local):
         log_url = ""
         channel = 'automation'
         try:
+            delete_old_logs()
             log_url = upload_folder(current_time)
         except Exception as e:
             logging.error('Log upload failed: %s', e)
