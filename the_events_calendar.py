@@ -1,5 +1,39 @@
+import base64
 import io
+import json
+import logging
 import re
+
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+sh = logging.StreamHandler()
+sh.setFormatter(logging.Formatter('%(levelname)s - %(message)s'))
+logger.addHandler(sh)
+
+calendar_name = None
+wordpress_app_password = None
+wordpress_host_name = None
+wordpress_automation_author_id = None
+
+
+def set_global_calendar(name):
+    global calendar_name
+    global wordpress_app_password
+    global wordpress_host_name
+    global wordpress_automation_author_id
+
+    with open('calendars.json', encoding='utf-8') as f:
+        calendar = json.load(f)['calendars'][name]
+        calendar_name = name
+        wordpress_app_password = calendar['wordpress_app_password']
+        wordpress_host_name = calendar['wordpress_host_name']
+        wordpress_automation_author_id = calendar['wordpress_automation_author_id']
+
+
+def auth_header():
+    return {'Authorization': 'Basic ' + base64.standard_b64encode(wordpress_app_password.encode()).decode(),
+            'User-Agent': 'Foo bar'}
+
 
 calendar_import_headers = ['Event Name', 'Event Description', 'Event Organizers', 'Event Venue Name',
                            'Event Start Date', 'Event Start Time', 'Event End Date', 'Event End Time',
@@ -20,36 +54,31 @@ activities = {"canvassing": ["canvas"],
               "texting": ["texting", "text bank", "textbank"],
               "fundraiser": ["fundrai"],
               "training": ["training"],
-              "briefing": ["briefing"]
+              "rallies": ["rally", "rallies"]
               }
 
 mobilize_event_type_map = {'CANVASS': 'canvassing', 'PHONE_BANK': 'phone-banking', 'TEXT_BANK': 'texting',
-                           'MEETING': None, 'COMMUNITY': None, 'FUNDRAISER': 'fundraiser', 'MEET_GREET': None,
-                           'HOUSE_PARTY': None, 'VOTER_REG': None, 'TRAINING': 'training',
-                           'FRIEND_TO_FRIEND_OUTREACH': None, 'DEBATE_WATCH_PARTY': None, 'ADVOCACY_CALL': None,
-                           'RALLY': None, 'TOWN_HALL': None, 'OFFICE_OPENING': None, 'BARNSTORM': None,
+                           'MEETING': 'meeting', 'COMMUNITY': 'meeting', 'FUNDRAISER': 'fundraiser', 'MEET_GREET': None,
+                           'HOUSE_PARTY': 'meeting', 'VOTER_REG': 'phone-banking', 'TRAINING': 'training',
+                           'FRIEND_TO_FRIEND_OUTREACH': None, 'DEBATE_WATCH_PARTY': 'meeting', 'ADVOCACY_CALL': None,
+                           'RALLY': 'rallies', 'TOWN_HALL': None, 'OFFICE_OPENING': None, 'BARNSTORM': None,
                            'SOLIDARITY_EVENT': None, 'COMMUNITY_CANVASS': 'canvassing', 'SIGNATURE_GATHERING': None,
-                           'CARPOOL': None, 'WORKSHOP': None, 'PETITION': None, 'AUTOMATED_PHONE_BANK': 'phone-banking',
+                           'CARPOOL': 'travel', 'WORKSHOP': None, 'PETITION': None, 'AUTOMATED_PHONE_BANK': 'phone-banking',
                            'LETTER_WRITING': 'letters-postcards', 'LITERATURE_DROP_OFF': None, 'VISIBILITY_EVENT': None,
                            'SOCIAL_MEDIA_CAMPAIGN': None, 'POSTCARD_WRITING': 'letters-postcards', 'OTHER': None}
 
 
 def has_real_venue(categories):
-    return "letters-postcards" in categories
+    return "letters-postcards" in categories or "rallies" in categories or "travel" in categories or "canvassing" in categories
 
 
-states = {"arizona-events": ["AZ", "Arizona"],
-          "colorado-events": ["CO", "Colorado"],
-          "florida-events": ["FL", "Florida"],
-          "georgia-events": ["GA", "Georgia"],
-          "iowa-events": ["IA", "Iowa"],
-          "maine-events": ["ME", "Maine"],
-          "michigan-events": ["MI", "Michigan"],
-          "north-carolina-events": ["NC", "North Carolina"],
-          "ohio-events": ["OH", "Ohio"],
-          "pennsylvania-events": ["PA", "Pennsylvania"],
-          "texas-events": ["TX", "Texas"],
-          "wisconsin-events": ["WI", "Wisconsin"]
+# Using the events calendar tag slugs
+states = {"florida": ["FL", "Florida"],
+          "georgia": ["GA", "Georgia"],
+          "new-hampshire": ["NH", "New Hampshire"],
+          "virginia": ["VA", "Virginia"],
+          "north-carolina": ["NC", "North Carolina"],
+          "pennsylvania": ["PA", "Pennsylvania"],
           }
 
 
@@ -57,22 +86,24 @@ def lookup_mobilize_event_type(mobilize_event_type):
     return mobilize_event_type_map.get(mobilize_event_type, None)
 
 
-def add_state_categories(category_list, text):
-    # Need to figure this out
-    return
-    state_list = []
-    for category, strings in states.items():
-        # only doing GA for now
-        if category != 'georgia-events':
-            continue
+def get_state_tags(tags_list):
+    # news-magic does not have state tags
+    tags = set([tag['name'] for tag in tags_list])
+    for tag, strings in states.items():
+        if strings[1] in tags:
+            return tag if 'news-magic' not in calendar_name else 'democracy-out-of-state', True
+    if 'Democracy-national' in tags:
+        return 'national' if 'news-magic' not in calendar_name else 'democracy-national', False
+    return None, False
+
+
+def infer_state_tags(text):
+    # news-magic does not have state tags
+    for tag, strings in states.items():
         pattern = '.*\\W{}\\W.*'.format(strings[0])
         if re.match(pattern, text) or strings[1] in text:
-            state_list.append(category)
-    if len(state_list) == 1:
-        category_list.append(state_list[0])
-    elif len(state_list) >=2:
-        print("Multiple states:", state_list)
-        category_list.extend(state_list)
+            return tag if 'news-magic' not in calendar_name else 'democracy-out-of-state', True
+    return None, False
 
 
 def add_activity_categories(category_list, text, title):
@@ -84,8 +115,8 @@ def add_activity_categories(category_list, text, title):
                 category_list.append(category)
                 added = True
                 break
-    if 'phone-calls' in category_list and 'training' in category_list and 'training' not in title:
-        category_list.remove('training')
+    if not added:
+        category_list.append('meeting')
 
 
 def add_tags(tag_list, text):
@@ -146,10 +177,10 @@ def infer_organizer(organizers_list, specified_org, title, description):
             if match > best_match or len_match > len_best_match:
                 best_match = match
                 len_best_match = len_match
-                matches.append(match)
+                matches.append((match, x['organizer']))
                 matched_organizer = x
     if best_match == 0:
         return None
     if len(matches) > 1:
-        print("Warning: multiple organizer matches: ", matches)
+        logger.warning("Multiple organizer matches: %s %s", specified_org, matches)
     return matched_organizer

@@ -1,7 +1,10 @@
+import api_key
 import argparse
 import csv
 import datetime
 from dateutil import parser
+import re
+from pprint import pprint
 import shutil
 
 import action_network
@@ -21,17 +24,84 @@ _parser.add_argument("-u", "--update_timestamp", action="store_true",
 args = _parser.parse_args()
 
 
+def get_recency(date):
+    l = date.split(sep='-')
+    year = l[0]
+    month = l[1]
+    if month >= '10':
+        return year + 'Q4'
+    if month >= '07':
+        return year + 'Q3'
+    if month >= '04':
+        return year + 'Q2'
+    return year + 'Q1'
+
+
+event_type_map = {'CANVASS': 'Canvass', 'PHONE_BANK': 'Phonebank', 'TEXT_BANK': 'Textbank',
+                  'MEETING': 'Other', 'COMMUNITY': 'Social', 'FUNDRAISER': 'Other', 'MEET_GREET': 'Social',
+                  'HOUSE_PARTY': 'Social', 'VOTER_REG': 'Other', 'TRAINING': 'Training',
+                  'FRIEND_TO_FRIEND_OUTREACH': 'Social', 'DEBATE_WATCH_PARTY': 'Social', 'ADVOCACY_CALL': 'Phonebank',
+                  'RALLY': 'Other', 'TOWN_HALL': 'Other', 'OFFICE_OPENING': 'Other', 'BARNSTORM': 'Other',
+                  'SOLIDARITY_EVENT': 'Social', 'COMMUNITY_CANVASS': 'Canvass', 'SIGNATURE_GATHERING': 'Canvass',
+                  'CARPOOL': 'Other', 'WORKSHOP': 'Other', 'PETITION': 'Other', 'AUTOMATED_PHONE_BANK': 'Phonebank',
+                  'LETTER_WRITING': 'Letter', 'LITERATURE_DROP_OFF': 'Other', 'VISIBILITY_EVENT': 'Other',
+                  'SOCIAL_MEDIA_CAMPAIGN': 'Other', 'POSTCARD_WRITING': 'Postcard', 'OTHER': 'Other'}
+
+states = {"FL": ["FL", "Florida"],
+          "GA": ["GA", "Georgia"],
+          "NH": ["NH", "New Hampshire"],
+          "VA": ["VA", "Virginia"],
+          "NC": ["NC", "North Carolina"],
+          "PA": ["PA", "Pennsylvania"],
+          }
+
+
+def get_state(text):
+    for tag, strings in states.items():
+        pattern = '.*\\W{}\\W.*'.format(strings[0])
+        if re.match(pattern, text) or strings[1] in text:
+            return tag
+    return 'National'
+
+
+def get_event_data(co_hosts, description, event_owner_email_address, event_type, organization_name, tags):
+    data = {}
+    hosts = co_hosts.split(sep='|')
+    if event_owner_email_address:
+        hosts.append(event_owner_email_address)
+    data['hosts'] = hosts
+    tags = tags.split(sep='|')
+    if 'Org: All In For Nc' in tags:
+        organization_name = 'All in for NC'
+    elif 'Org: Ma Flip Pa' in tags:
+        organization_name = 'MAFlipPA'
+    elif organization_name == 'Swing Left Greater Boston / Swing Blue Alliance':
+        organization_name = 'Swing Blue Alliance'
+    data['org'] = organization_name
+    data['type'] = event_type_map[event_type]
+    data['state'] = get_state(description)
+    return data
+
+
+def create_action_network_tag(event_data, start, role):
+    return '|'.join([event_data['org'], role, event_data['type'], event_data['state'], get_recency(start)])
+
+
 def create_event_map(event_path):
     event_map = {}
     with open(event_path, newline='', encoding='utf-8') as ifile:
         reader = csv.reader(ifile)
         iheaders = next(reader)
-        tags_index = iheaders.index('tags')
         eid_index = iheaders.index('id')
 
         for record in reader:
             if record[eid_index] not in event_map:
-                event_map[record[eid_index]] = {'tags': set(record[tags_index].split(sep='|'))}
+                event_map[record[eid_index]] = get_event_data(record[iheaders.index('co_hosts')],
+                                                              record[iheaders.index('description')],
+                                                              record[iheaders.index('event_owner_email_address')],
+                                                              record[iheaders.index('event_type')],
+                                                              record[iheaders.index('organization_name')],
+                                                              record[iheaders.index('tags')])
     return event_map
 
 
@@ -40,7 +110,6 @@ def mobilize_america_to_action_network(shift_path, event_path, start, end):
     event_map = create_event_map(event_path)
     people = {}
     with open(shift_path, newline='', encoding='utf-8') as ifile:
-        records = []
         reader = csv.reader(ifile)
         iheaders = next(reader)
         fn_index = iheaders.index('first name')
@@ -54,18 +123,19 @@ def mobilize_america_to_action_network(shift_path, event_path, start, end):
         for record in reader:
             if record[start_index] <= start or record[start_index] > end:
                 continue
-            print(record[start_index])
-            new_tags = set(event_map[record[eid_index]]['tags'])
+            if record[eid_index] not in event_map:
+                continue
+            new_tag = create_action_network_tag(event_map[record[eid_index]], record[start_index], 'Participant')
             email = record[email_index]
             people_entry = people.get(email, None)
             if people_entry is not None:
-                people_entry['tags'].update(new_tags)
+                people_entry['tags'].add(new_tag)
             else:
                 zip_code = record[zip_index]
                 if len(zip_code) == 4:
                     zip_code = '0' + zip_code
                 people[email] = {'fn': record[fn_index], 'ln': record[ln_index], 'zip': zip_code,
-                                 'phone': record[phone_index], 'tags': new_tags}
+                                 'phone': record[phone_index], 'tags': set([new_tag])}
     for email, data in people.items():
         print(email, data['fn'], data['ln'], data['phone'], data['zip'], data['tags'])
         person = {"person": {"family_name": data['ln'],
@@ -106,6 +176,25 @@ def main():
         shutil.copy('mobilize-action-network-timestamp.txt', 'mobilize-action-network-timestamp-last.txt')
         with open('mobilize-action-network-timestamp.txt', 'w') as f:
             f.write(str(now))
+
+
+# entry_point = 'https://api.mobilize.us/v1/'
+# api_header = {'Content-Type': 'application/json', 'Authorization': 'Bearer ' + api_key.mobilize_key}
+#
+#
+# def get_mobilize_attendances(event):
+#     url = '{}organizations/1535/events/{}/attendances?per_page=100'.format(entry_point, event)
+#     while True:
+#         print(url)
+#         r = requests.get(url, headers=api_header)
+#         assert r.ok, r.text
+#         j_data = r.json()
+#         for attendance in j_data['data']:
+#             yield attendance
+#         next_url = j_data['next']
+#         if next_url is None:
+#             break
+#         url = next_url
 
 
 if __name__ == '__main__':

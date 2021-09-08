@@ -30,13 +30,17 @@ def get_calendar_tags(mobilize_tags, calendar_tags):
 def get_event_organizer(event):
     if any([tag['name'] == 'Org: All In For Nc' for tag in event['tags']]):
         return 'All in for NC'
+    if any([tag['name'] == 'Org: Ma Flip Pa' for tag in event['tags']]):
+        return 'MAFlipPA'
     org = event['sponsor']['name']
     if org == 'JP Progressives':
         return 'Jamaica Plain Progressives'
+    if org == 'Swing Left Greater Boston / Swing Blue Alliance':
+        return 'Swing Blue Alliance'
     return org
 
 
-def mobilize_to_calendar(event, calendar_tags):
+def mobilize_to_calendar(event):
     event_url = event['browser_url']
     event_organizer = get_event_organizer(event)
     # Mobilize uses markdown. There are many variants but we hope this markdown package will do no harm.
@@ -59,9 +63,6 @@ def mobilize_to_calendar(event, calendar_tags):
     if not (city or zip_code or sponsor in events.inside_orgs):
         return None
     categories = []
-    tags = get_calendar_tags(event['tags'], calendar_tags)
-    if len(tags) == 0:
-        logger.info("No tag found for: %s", event_url)
     region = ''
     if state in regions.state_categories:
         region = regions.state_categories[state]
@@ -70,7 +71,17 @@ def mobilize_to_calendar(event, calendar_tags):
     elif state == 'MA':
         region = regions.get_ma_region_by_zip(zip_code)
     text = event['title'] + ' ' + event['description']
-    the_events_calendar.add_state_categories(categories, text)
+    tags = []
+    tag, is_target_state = the_events_calendar.get_state_tags(event['tags'])
+    if tag is None:
+        tag, is_target_state = the_events_calendar.infer_state_tags(text)
+    if tag is not None:
+        tags = [tag]
+    # For the grassroots news-magic calendar we only post Swing Blue Alliance events. For the Swing Blue Alliance
+    # calendar we also post promoted events that are locally hosted and part of a target state campaign.
+    if sponsor not in events.inside_orgs:
+        if 'news-magic' in the_events_calendar.calendar_name or not is_target_state:
+            return None
     if 'event_type' not in event:
         the_events_calendar.add_activity_categories(categories, text, event['title'])
     else:

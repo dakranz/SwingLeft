@@ -9,12 +9,15 @@ import re
 import shutil
 import slack
 import subprocess
+import time
 
 success = 0
 warnings = 1
 errors = 2
 
 _parser = argparse.ArgumentParser()
+_parser.add_argument("-c", "--calendar", required=True,
+                    help="Name of calendar to update")
 _parser.add_argument("-u", "--upload", action="store_true",
                     help="Upload local timestamp files to dropbox and exit")
 _parser.add_argument("-d", "--download", action="store_true",
@@ -50,24 +53,49 @@ def upload_folder(local_path):
     return dbx.sharing_create_shared_link_with_settings(folder).url
 
 
-def upload_file(filename):
+def do_dropbox_op(func, filename):
+    i = 1
+    while True:
+        try:
+            func(filename)
+        except IOError as e:
+            logging.info(e)
+            if i > 3:
+                raise e
+            time.sleep(2 ** i)
+            i += 1
+        else:
+            return
+
+
+def _upload_file(filename):
     logging.info('Uploading %s', filename)
     dbx = dropbox.dropbox_client.Dropbox(api_key.dropbox_key)
     with open(filename, 'rb') as f:
         dbx.files_upload(f.read(), '/' + filename, mode=dropbox.files.WriteMode('overwrite'), mute=True)
 
 
-def download_file(filename):
+def upload_file(filename):
+    do_dropbox_op(_upload_file, filename)
+
+
+def _download_file(filename):
     logging.info('Downloading %s', filename)
     dbx = dropbox.dropbox_client.Dropbox(api_key.dropbox_key)
     dbx.files_download_to_file(filename, '/' + filename)
 
 
+def download_file(filename):
+    do_dropbox_op(_download_file, filename)
+
 # *Failure*: <link|time>
 # log contents
 
+
 def report_results(status, channel, current_time, log_url, log):
     header = "*Calendar upload status: {}* <{}|{}>".format(status, log_url, current_time)
+    if status != "Succeeded":
+        header = '<!channel> ' + header
     blocks = [{"type": "section",
                "text": {"type": "mrkdwn",
                         "text": header}
@@ -82,10 +110,10 @@ def subprocess_run(command):
     return subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
 
 
-def do_calendar_update(kind, log_dir):
+def do_calendar_update(kind, log_dir, calendar):
     status = success
-    command = ["python", kind + "_event_feed.py", "-t"]
-    # command = ["python", kind + "_event_feed.py", "--hours", "24"]
+    command = ["python", kind + "_event_feed.py", "-t", "-c", calendar]
+    # command = ["python", kind + "_event_feed.py", "--hours", "24", "-c", calendar]
     logging.info('Running: %s', ' '.join(command))
     result = subprocess_run(command)
     log = result.stderr
@@ -119,64 +147,69 @@ def do_calendar_update(kind, log_dir):
     return status
 
 
-def download_timestamps():
-    download_file('mobilize-timestamp.txt')
-    download_file('slack-timestamp.txt')
+def download_timestamps(calendar):
+    download_file(calendar + '-mobilize-timestamp.txt')
+    if 'news-magic' in calendar:
+        download_file(calendar + '-slack-timestamp.txt')
 
 
-def upload_timestamps():
-    upload_file('mobilize-timestamp.txt')
-    upload_file('slack-timestamp.txt')
+def upload_timestamps(calendar):
+    upload_file(calendar + '-mobilize-timestamp.txt')
+    if 'news-magic' in calendar:
+        upload_file(calendar + '-slack-timestamp.txt')
 
 
-def run_calendar_update(is_local):
+def run_calendar_update(calendar, is_local):
     buf = io.StringIO()
     file_handler = logging.FileHandler("run.log", "w")
     logging.basicConfig(level=logging.INFO, handlers=[file_handler,
                                                       logging.StreamHandler(buf),
                                                       logging.StreamHandler()])
-    current_time = dt_to_pathname(datetime.datetime.now())
-    logging.info("Log dir: %s", current_time)
-    os.mkdir(current_time)
+    folder_name = dt_to_pathname(datetime.datetime.now())
+    logging.info("Log dir: %s", folder_name)
+    os.mkdir(folder_name)
     slack_status = mobilize_status = errors
     try:
         if not is_local:
-            download_timestamps()
-        slack_status = do_calendar_update('slack', current_time)
+            download_timestamps(calendar)
+        slack_status = do_calendar_update('slack', folder_name, calendar)
         if slack_status == errors:
             logging.error('Slack update failed')
-        mobilize_status = do_calendar_update('mobilize', current_time)
-        if mobilize_status == errors:
-            logging.error('Mobilize update failed')
+        if 'news-magic' not in calendar:
+            mobilize_status = do_calendar_update('mobilize', folder_name, calendar)
+            if mobilize_status == errors:
+                logging.error('Mobilize update failed')
+        else:
+            mobilize_status = success
         if not is_local and slack_status != errors and mobilize_status != errors:
-            upload_timestamps()
+            upload_timestamps(calendar)
     except Exception as e:
         logging.error('%s', e)
-    shutil.copy('run.log', current_time)
+    shutil.copy('run.log', folder_name)
     if not is_local:
         log_url = ""
         channel = 'automation'
         try:
             delete_old_logs()
-            log_url = upload_folder(current_time)
+            log_url = upload_folder(folder_name)
         except Exception as e:
             logging.error('Log upload failed: %s', e)
-            report_results('Uploading logs failed', channel, current_time, log_url, buf.getvalue())
+            report_results('Uploading logs failed', channel, folder_name, log_url, buf.getvalue())
             return
         if slack_status == errors or mobilize_status == errors:
-            report_results('Failed', channel, current_time, log_url, buf.getvalue())
+            report_results('Failed', channel, folder_name, log_url, buf.getvalue())
         elif slack_status == warnings or mobilize_status == warnings:
-            report_results('Warnings', channel, current_time, log_url, buf.getvalue())
+            report_results('Warnings', channel, folder_name, log_url, buf.getvalue())
         else:
-            report_results('Succeeded', channel, current_time, log_url, None)
+            report_results('Succeeded', channel, folder_name, log_url, None)
     file_handler.close()
     os.remove('run.log')
 
 
 if __name__ == '__main__':
     if args.upload:
-        upload_timestamps()
+        upload_timestamps(args.calendar)
     elif args.download:
-        download_timestamps()
+        download_timestamps(args.calendar)
     else:
-        run_calendar_update(args.local)
+        run_calendar_update(args.calendar, args.local)

@@ -15,6 +15,8 @@ import the_events_calendar
 import slack
 
 _parser = argparse.ArgumentParser()
+_parser.add_argument("-c", "--calendar", required=True,
+                    help="Name of the calendar being updated.")
 _parser.add_argument("--hours", type=int,
                        help="Hours ago for oldest event to process.")
 _parser.add_argument("-t", "--timestamp", action="store_true",
@@ -25,6 +27,8 @@ _parser.add_argument("-u", "--update_timestamp", action="store_true",
                     help="Update slack-timestamp.txt to current time.")
 _parser.add_argument("-s", "--search",
                     help="Process only messages with search string in title.")
+_parser.add_argument("-k", "--skip",
+                    help="D not process messages with search string in title.")
 _parser.add_argument("-f", "--file",
                     help="Process messages saved in json file.")
 _parser.add_argument("--old", action="store_true",
@@ -204,11 +208,19 @@ def process_slack_messages(messages):
             continue
         if args.search is not None and args.search not in header_block[0]:
             continue
+        if args.skip is not None and args.skip in header_block[0]:
+            continue
         elif args.search is not None:
             logger.info(pformat(message))
         logger.info(pformat(header_block))
         if 'mobilize.us/swingleftbos' in description:
             logger.info('Ignoring message with swing left boston mobilize event')
+            continue
+        if 'mobilize.us/sba' in description:
+            logger.info('Ignoring message with sba mobilize event')
+            continue
+        if 'mobilize.us/swingbluealliance' in description:
+            logger.info('Ignoring message with swing blue alliance mobilize event')
             continue
         organizer = ''
         title = remove_markdown(header_block[0])
@@ -219,6 +231,16 @@ def process_slack_messages(messages):
         for attachment in attachments:
             if 'channel_name' in attachment:
                 tags.append(attachment['channel_name'])
+        main_tags = ['democracy-out-of-state', 'democracy-national']
+        if 'news-magic' not in the_events_calendar.calendar_name:
+            if len(tags) == 0 or tags[0] not in main_tags:
+                continue
+            elif tags[0] == 'democracy-out-of-state':
+                tag, out_of_state = the_events_calendar.infer_state_tags(text)
+                if tag is not None:
+                    tags[0] = tag
+            elif tags[0] == 'democracy-national':
+                tags[0] = 'national'
         date_lines = []
         for line in header_block[1:]:
             # remove markup bold
@@ -269,7 +291,7 @@ def process_slack_messages(messages):
             logger.info("start: %s %s end: %s %s", event_start_date, event_start_time, event_end_date, event_end_time)
     if len(records) == 0:
         return
-    out_name = '{}-cal-import.csv'.format(now.strftime("%Y-%m-%d %H;%M;%S"))
+    out_name = '{}--{}-cal-import.csv'.format(the_events_calendar.calendar_name, now.strftime("%Y-%m-%d %H;%M;%S"))
     with open(out_name, mode='w', newline='', encoding='utf-8') as ofile:
         writer = csv.writer(ofile)
         writer.writerow(the_events_calendar.calendar_import_headers)
@@ -278,6 +300,8 @@ def process_slack_messages(messages):
 
 
 def main():
+    timestamp_file = args.calendar + '-slack-timestamp.txt'
+    timestamp_backup_file = args.calendar + '-slack-timestamp-last.txt'
     if args.file:
         slack_event_feed_from_file(args.file)
         exit(0)
@@ -290,18 +314,22 @@ def main():
     if args.hours:
         slack_event_feed(now - args.hours * 3600, channel)
     elif args.timestamp:
-        with open('slack-timestamp.txt') as f:
+        with open(timestamp_file) as f:
             try:
                 slack_event_feed(int(f.read()), channel)
             except FileNotFoundError:
                 print('No timestamp file')
                 exit(1)
     if update_stamp:
-        shutil.copy('slack-timestamp.txt', 'slack-timestamp-last.txt')
-        with open('slack-timestamp.txt', 'w') as f:
+        try:
+            shutil.copy(timestamp_file, timestamp_backup_file)
+        except FileNotFoundError:
+            pass
+        with open(timestamp_file, 'w') as f:
             f.write(str(now))
 
 
 if __name__ == '__main__':
+    the_events_calendar.set_global_calendar(args.calendar)
     main()
 

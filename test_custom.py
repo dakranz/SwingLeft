@@ -3,13 +3,13 @@ import json
 import requests
 from pprint import pformat
 
-import api_key
 import events
 import regions
+import the_events_calendar
 
-auth_header = {'Authorization': 'Basic ' + base64.standard_b64encode(api_key.wordpress_app_password.encode()).decode(),
+auth_header = {'Authorization': 'Basic ' + base64.standard_b64encode(the_events_calendar.wordpress_app_password.encode()).decode(),
                'User-Agent': 'Foo bar'}
-base_url = 'https://' + api_key.wordpress_host_name + '/wp-json/tribe/events/v1/events'
+base_url = 'https://' + the_events_calendar.wordpress_host_name + '/wp-json/tribe/events/v1/events'
 
 
 def update_event(event_id, json):
@@ -46,7 +46,7 @@ def delete_bad_venues(n):
     i = 0
     for venue in venues:
         if "venue" not in venue:
-            url = 'https://' + api_key.wordpress_host_name + '/wp-json/tribe/events/v1/venues/' + str(venue['id'])
+            url = 'https://' + the_events_calendar.wordpress_host_name + '/wp-json/tribe/events/v1/venues/' + str(venue['id'])
             print(url)
             # r = requests.delete(url, headers=auth_header)
             # if not r.ok:

@@ -1,0 +1,13 @@
+{"calendars": {
+  "<calendar 1>": {
+    "wordpress_app_password": "<username>:<app password>",
+    "wordpress_host_name": "<hostname where calendar api is served>",
+    "wordpress_automation_author_id": "<id of the user whose app password is used>"
+  },
+  "<calendar 2>": {
+    "wordpress_app_password": "",
+    "wordpress_host_name": "",
+    "wordpress_automation_author_id": ""
+  }
+}
+}

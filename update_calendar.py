@@ -1,13 +1,12 @@
 import argparse
-import base64
 import csv
 import datetime
 import logging
 import requests
 from pprint import pformat
 
-import api_key
 import events
+import the_events_calendar
 
 parser = argparse.ArgumentParser()
 parser.add_argument("csv_file", help="csv file with event data")
@@ -28,21 +27,27 @@ logger.addHandler(sh)
 if args.use_cached_data:
     events.use_saved_data = True
 
-auth_header = {'Authorization': 'Basic ' + base64.standard_b64encode(api_key.wordpress_app_password.encode()).decode(),
-               'User-Agent': 'Foo bar'}
-events_base_url = 'https://' + api_key.wordpress_host_name + '/wp-json/tribe/events/v1/events'
-venues_base_url = 'https://' + api_key.wordpress_host_name + '/wp-json/tribe/events/v1/venues'
+
+def events_base_url():
+    return 'https://' + the_events_calendar.wordpress_host_name + '/wp-json/tribe/events/v1/events'
+
+
+def venues_base_url():
+    return 'https://' + the_events_calendar.wordpress_host_name + '/wp-json/tribe/events/v1/venues'
+
 
 # Unfortunately we cannot control the random names the events calendar assigns to custom fields but it should not change
 custom_field_map = {'region': '_ecp_custom_2'}
 
 
 def update_event(event_id, json):
-    return requests.post('{}/{}'.format(events_base_url, event_id), headers=auth_header, json=json)
+    auth_header = the_events_calendar.auth_header()
+    return requests.post('{}/{}'.format(events_base_url(), event_id), headers=auth_header, json=json)
 
 
 def create_event(json):
-    return requests.post(events_base_url, headers=auth_header, json=json)
+    auth_header = the_events_calendar.auth_header()
+    return requests.post(events_base_url(), headers=auth_header, json=json)
 
 
 def get_metadata_id(metadata, kind, key, value):
@@ -64,6 +69,8 @@ def get_venue_id(metadata, value, city, state, zip_code):
     venue_id = get_metadata_id(metadata, 'venues', 'venue', value)
     if venue_id is not None:
         return venue_id
+    if args.dry_run:
+        return 0
     data = {'venue': value}
     if city:
         data['city'] = city
@@ -73,7 +80,7 @@ def get_venue_id(metadata, value, city, state, zip_code):
     # Calendar API bug makes this bomb out
     # if zip_code:
     #     data['zip'] = int(zip_code)
-    r = requests.post(venues_base_url, headers=auth_header, json=data)
+    r = requests.post(venues_base_url(), headers=the_events_calendar.auth_header(), json=data)
     if not r.ok:
         logger.warning("Could not create venue for %s: %s", value, r.text)
         return None
@@ -182,12 +189,10 @@ def update_calendar(path):
             event = get_existing_event(event_map, post_data, processed_mobilize_ids)
             if event is not None:
                 # Do not update manually created events
-                if str(event['author']) != api_key.wordpress_automation_author_id:
+                if str(event['author']) != the_events_calendar.wordpress_automation_author_id:
                     logger.info("Skipping manually created event %s: %s", event['id'], event['rest_url'])
                     continue
                 post_data['id'] = event['id']
-                # Do not overwrite an inferred category since it is not reliable enough and may have been fixed manually
-                post_data.pop('categories', None)
                 logger.info("Updating %s: %s", event['id'], event['rest_url'])
             else:
                 logger.info("Creating: %s %s %s", post_data['start_date'], post_data['title'], post_data['website'])
@@ -213,4 +218,6 @@ def update_calendar(path):
 
 
 if __name__ == '__main__':
-    update_calendar(args.csv_file)
+    path = args.csv_file
+    the_events_calendar.set_global_calendar(path[0:path.find('--')])
+    update_calendar(path)
