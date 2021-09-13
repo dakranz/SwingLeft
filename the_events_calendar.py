@@ -87,22 +87,20 @@ def lookup_mobilize_event_type(mobilize_event_type):
 
 
 def get_state_tags(tags_list):
-    # news-magic does not have state tags
     tags = set([tag['name'] for tag in tags_list])
     for tag, strings in states.items():
         if strings[1] in tags:
-            return tag if 'news-magic' not in calendar_name else 'democracy-out-of-state', True
+            return tag, True
     if 'Democracy-national' in tags:
         return 'national' if 'news-magic' not in calendar_name else 'democracy-national', False
     return None, False
 
 
 def infer_state_tags(text):
-    # news-magic does not have state tags
     for tag, strings in states.items():
         pattern = '.*\\W{}\\W.*'.format(strings[0])
         if re.match(pattern, text) or strings[1] in text:
-            return tag if 'news-magic' not in calendar_name else 'democracy-out-of-state', True
+            return tag, True
     return None, False
 
 

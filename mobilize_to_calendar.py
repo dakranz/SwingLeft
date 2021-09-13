@@ -57,7 +57,7 @@ def mobilize_to_calendar(event):
         state = event['location']['region']
         zip_code = event['location']['postal_code']
         # Skip outside MA
-        if zip_code >= '02800':
+        if zip_code >= '02800' and sponsor not in events.inside_orgs:
             return None
     # Skip events with no location unless sponsored by us or a close sponsor
     if not (city or zip_code or sponsor in events.inside_orgs):

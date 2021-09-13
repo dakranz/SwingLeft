@@ -87,7 +87,7 @@ def process_event_feed(event_list):
             records.extend(event_data)
     if len(records) == 0:
         return
-    out_name = '{}--{}-cal-import.csv'.format(the_events_calendar.calendar_name, current_date)
+    out_name = '{}--mobilize-{}-cal-import.csv'.format(the_events_calendar.calendar_name, current_date)
     with open(out_name, mode='w', newline='', encoding='utf-8') as ofile:
         writer = csv.writer(ofile)
         writer.writerow(the_events_calendar.calendar_import_headers)

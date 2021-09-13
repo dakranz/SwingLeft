@@ -231,16 +231,26 @@ def process_slack_messages(messages):
         for attachment in attachments:
             if 'channel_name' in attachment:
                 tags.append(attachment['channel_name'])
-        main_tags = ['democracy-out-of-state', 'democracy-national']
+        if len(tags) == 0:
+            logger.warning("No channel name in attachments.")
+            continue
         if 'news-magic' not in the_events_calendar.calendar_name:
-            if len(tags) == 0 or tags[0] not in main_tags:
+            if tags[0] == 'democracy-out-of-state':
+                tag, out_of_state = the_events_calendar.infer_state_tags(text)
+                if tag is None:
+                    logger.info("Non-target-state event not posted to non-news-magic calendar")
+                    continue
+                tags[0] = tag
+            elif tags[0] == 'democracy-national':
+                tags[0] = 'national'
+            else:
+                logger.info("Non-democracy event not posted to non-news-magic calendar")
                 continue
-            elif tags[0] == 'democracy-out-of-state':
+        else:
+            if tags[0] == 'democracy-out-of-state':
                 tag, out_of_state = the_events_calendar.infer_state_tags(text)
                 if tag is not None:
                     tags[0] = tag
-            elif tags[0] == 'democracy-national':
-                tags[0] = 'national'
         date_lines = []
         for line in header_block[1:]:
             # remove markup bold
@@ -291,7 +301,7 @@ def process_slack_messages(messages):
             logger.info("start: %s %s end: %s %s", event_start_date, event_start_time, event_end_date, event_end_time)
     if len(records) == 0:
         return
-    out_name = '{}--{}-cal-import.csv'.format(the_events_calendar.calendar_name, now.strftime("%Y-%m-%d %H;%M;%S"))
+    out_name = '{}--slack-{}-cal-import.csv'.format(the_events_calendar.calendar_name, now.strftime("%Y-%m-%d %H;%M;%S"))
     with open(out_name, mode='w', newline='', encoding='utf-8') as ofile:
         writer = csv.writer(ofile)
         writer.writerow(the_events_calendar.calendar_import_headers)
