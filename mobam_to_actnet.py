@@ -1,4 +1,3 @@
-import api_key
 import argparse
 import csv
 import datetime
@@ -64,12 +63,14 @@ def get_state(text):
     return 'National'
 
 
-def get_event_data(co_hosts, description, event_owner_email_address, event_type, organization_name, tags):
+def get_event_data(co_hosts, description, event_owner_email_address, event_type, organization_name, tags, created_at):
     data = {}
-    hosts = co_hosts.split(sep='|')
-    if event_owner_email_address:
-        hosts.append(event_owner_email_address)
-    data['hosts'] = hosts
+    if organization_name == 'Swing Blue Alliance' and (len(co_hosts) > 0 or len(event_owner_email_address) > 0):
+        hosts = co_hosts.split(sep='|') if len(co_hosts) > 0 else []
+        if len(event_owner_email_address) > 0:
+            hosts.append(event_owner_email_address)
+        data['hosts'] = hosts
+        data['created_at'] = created_at
     tags = tags.split(sep='|')
     if 'Org: All In For Nc' in tags:
         organization_name = 'All in for NC'
@@ -78,7 +79,7 @@ def get_event_data(co_hosts, description, event_owner_email_address, event_type,
     elif organization_name == 'Swing Left Greater Boston / Swing Blue Alliance':
         organization_name = 'Swing Blue Alliance'
     data['org'] = organization_name
-    data['type'] = event_type_map[event_type]
+    data['type'] = event_type_map.get(event_type, 'Other')
     data['state'] = get_state(description)
     return data
 
@@ -101,7 +102,8 @@ def create_event_map(event_path):
                                                               record[iheaders.index('event_owner_email_address')],
                                                               record[iheaders.index('event_type')],
                                                               record[iheaders.index('organization_name')],
-                                                              record[iheaders.index('tags')])
+                                                              record[iheaders.index('tags')],
+                                                              record[iheaders.index('created_at')])
     return event_map
 
 
@@ -109,6 +111,7 @@ def create_event_map(event_path):
 def mobilize_america_to_action_network(shift_path, event_path, start, end):
     event_map = create_event_map(event_path)
     people = {}
+    tags = set()
     with open(shift_path, newline='', encoding='utf-8') as ifile:
         reader = csv.reader(ifile)
         iheaders = next(reader)
@@ -120,12 +123,14 @@ def mobilize_america_to_action_network(shift_path, event_path, start, end):
         eid_index = iheaders.index('event id')
         start_index = iheaders.index('start')
 
+        # Record participants
         for record in reader:
             if record[start_index] <= start or record[start_index] > end:
                 continue
             if record[eid_index] not in event_map:
                 continue
             new_tag = create_action_network_tag(event_map[record[eid_index]], record[start_index], 'Participant')
+            tags.add(new_tag)
             email = record[email_index]
             people_entry = people.get(email, None)
             if people_entry is not None:
@@ -136,15 +141,47 @@ def mobilize_america_to_action_network(shift_path, event_path, start, end):
                     zip_code = '0' + zip_code
                 people[email] = {'fn': record[fn_index], 'ln': record[ln_index], 'zip': zip_code,
                                  'phone': record[phone_index], 'tags': set([new_tag])}
+        # Record hosts
+        for _, data in event_map.items():
+            if 'hosts' not in data:
+                continue
+            created_at = data['created_at']
+            if created_at <= start or created_at > end:
+                continue
+            for email in data['hosts']:
+                new_tag = create_action_network_tag(data, created_at, 'Organizer')
+                tags.add(new_tag)
+                people_entry = people.get(email, None)
+                if people_entry is not None:
+                    people_entry['tags'].add(new_tag)
+                else:
+                    people[email] = {'tags': set([new_tag])}
+
+    people_data = []
+    records = []
     for email, data in people.items():
-        print(email, data['fn'], data['ln'], data['phone'], data['zip'], data['tags'])
-        person = {"person": {"family_name": data['ln'],
-                             "given_name": data['fn'],
-                             "email_addresses": [{"address": email}],
-                             "custom_fields": {"Phone": data['phone']}
-                             },
-                  "add_tags": [tag for tag in data['tags']]
-                  }
+        add_tags = [tag for tag in data['tags']]
+        if len(data) == 1:
+            records.append([email, ','.join(add_tags), "", "", "", ""])
+            person_data = {"email_addresses": [{"address": email}]}
+        else:
+            records.append([email, ','.join(add_tags), data['fn'], data['ln'], data['phone'], data['zip']])
+            person_data = {"family_name": data['ln'], "given_name": data['fn'], "email_addresses": [{"address": email}],
+                           "postal_addresses": [{"postal_code": data['zip']}],
+                           "phone_numbers": [{"number": data['phone']}]
+                          }
+        people_data.append({"person": person_data, "add_tags": add_tags})
+    current_date = datetime.datetime.now().strftime("%Y-%m-%d %H;%M;%S")
+    out_name = '{}-action-network-upload.csv'.format(current_date)
+    with open(out_name, mode='w', newline='', encoding='utf-8') as ofile:
+        writer = csv.writer(ofile)
+        writer.writerow(['Email', 'Tags', 'First Name', 'Last Name', 'Phone', 'Zipcode'])
+        writer.writerows(records)
+    print(out_name)
+    new_tags = tags.difference(set(action_network.get_tags()))
+    # for tag_name in new_tags:
+    #     xxction_network.add_tag(tag_name)
+    # xxction_network.add_people(people_data)
 
 
 def string_to_date_string(s):
@@ -170,7 +207,7 @@ def main():
                 exit(1)
     else:
         start = string_to_date_string(args.start)
-        end = string_to_date_string(args.end)
+        end = string_to_date_string(args.end if args.end == 0 else now)
     mobilize_america_to_action_network(args.shift_export, args.event_export, start, end)
     if args.timestamp or args.update_timestamp:
         shutil.copy('mobilize-action-network-timestamp.txt', 'mobilize-action-network-timestamp-last.txt')

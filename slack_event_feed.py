@@ -223,6 +223,7 @@ def process_slack_messages(messages):
             logger.info('Ignoring message with swing blue alliance mobilize event')
             continue
         organizer = ''
+        venue = 'Online/Anywhere'
         title = remove_markdown(header_block[0])
         text = title + ' ' + description
         categories = []
@@ -269,6 +270,16 @@ def process_slack_messages(messages):
                 description = '{}\n\nRSVP: {}'.format(description, value)
             elif key == 'activity':
                 categories = [value]
+            elif key == 'location':
+                # Should be city, state
+                match = re.match(r'(\w+)\s*,\s*(\w\w)\Z', value)
+                if match is None:
+                    logger.warning("Bad location: %s", value)
+                    continue
+                city = match[1]
+                state = match[2].upper()
+                venue = '{}, {}'.format(city, state)
+                title = '{}, {} - {}'.format(city.upper(), state, title)
         description = convert_description(description)
         if organizers is None:
             organizers = events.get_calendar_metadata('organizers')['organizers']
@@ -294,7 +305,7 @@ def process_slack_messages(messages):
             event_start_time = start_dt.strftime("%H:%M:00")
             event_end_date = end_dt.strftime("%Y-%m-%d")
             event_end_time = end_dt.strftime("%H:%M:00")
-            event_record = [title, description, organizer, 'Online/Anywhere', event_start_date,
+            event_record = [title, description, organizer, venue, event_start_date,
                             event_start_time, event_end_date, event_end_time, '', '', '',
                             ','.join(categories), ','.join(tags), '', '']
             records.append(event_record)

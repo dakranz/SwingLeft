@@ -1,100 +1,45 @@
-import csv
-import datetime
-import events
 import re
+import sys
 
-# missing = set()
-# for event in c_events:
-#     if not event['image']:
-#         e = event['website'].split(sep='/')
-#         if len(e) < 2 or not e[-2].isnumeric():
-#             continue
-#         eid = int(e[-2])
-#         for e in m_events:
-#             if e['id'] == eid:
-#                 missing.add(e['featured_image_url'])
-#                 break
-# for image in missing:
-#     print(image)
+import events
+import the_events_calendar
 
-# dangling = {}
-# for event in c_events:
-#     if event['website'] == "" and "<a " not in event['description']:
-#         if event['title'] not in dangling:
-#             dangling[event['title']] = {'id': event['id'], 'title': event['title']}
-# for k, v in dangling.items():
-#     print(v)
+GRUBER_URLINTEXT_PAT = re.compile(r'(?i)\b((?:https?://|www\d{0,3}[.]|[a-z0-9.\-]+[.][a-z]{2,4}/)(?:[^\s()<>]+|\(([^\s()<>]+|(\([^\s()<>]+\)))*\))+(?:\(([^\s()<>]+|(\([^\s()<>]+\)))*\)|[^\s`!()\[\]{};:\'".,<>?\xab\xbb\u201c\u201d\u2018\u2019]))')
 
 
-def print_missing_calendar_events():
-    event_map = events.get_event_map()
-    now = int(datetime.datetime.now().timestamp())
-    print('Mobilize events not in calendar:')
-    for event in events.get_mobilize_events():
-        if all([slot['start_date'] < now for slot in event['timeslots']]):
+def get_urls(text):
+    return [matches[0] for matches in GRUBER_URLINTEXT_PAT.findall(text) if matches[0] != 'http://news-magic.org/']
+
+
+skip_list = {'news-magic': ['https://www.mobilize.us/indivisiblegreaterandover/event/411938/'],
+             'sba': []}
+
+
+def find_duplicate_calendar_events():
+    all_events = events.get_calendar_events()
+    url_map = {}
+    for event in all_events:
+        for url in get_urls(event['description']):
+            candidate = (url, event['start_date'])
+            if candidate in url_map:
+                url_map[candidate].add(event['url'])
+            else:
+                url_map[candidate] = set([event['url']])
+    for (url, start), event_urls in url_map.items():
+        if len(event_urls) == 1:
             continue
-        event_id = events.get_event_id(event['browser_url'])
-        if event_id not in event_map:
-            print(event['browser_url'], datetime.datetime.fromtimestamp(event['created_date']).strftime('%c'))
-            print(event['title'], '\n')
-            for slot in event['timeslots']:
-                if slot['start_date'] > now:
-                    print(datetime.datetime.fromtimestamp(slot['start_date']).strftime('%Y-%m-%d %H:%M:%S'))
-            print('\n')
-
-
-def dump_new_time_slots():
-    current_date = datetime.datetime.now().strftime("%Y-%m-%d %H;%M")
-    event_map = events.get_event_map()
-    mobilize_events = events.get_mobilize_events()
-    headers = ['Title', 'URL', 'New Times']
-    records = []
-    for m_event in mobilize_events:
-        browser_url = m_event['browser_url']
-        m_id = events.get_event_id(browser_url)
-        if m_id in ['329148', '220981', '295218', '295224', '295226', '301337', '349969', '345286', '302734',
-                    '337910', '345743']:
-            # Events to be excluded from calendar.
+        if url in skip_list[the_events_calendar.calendar_name]:
             continue
-        elif m_id not in event_map:
-            c_events = []
-        else:
-            c_events = event_map[m_id]
-        timeslots = m_event['timeslots']
-        if len(timeslots) > 5:
-            interval = timeslots[1]['start_date'] - timeslots[0]['start_date']
-            if 23 * 3600 < interval < 25 * 3600:
-                continue
-        if len(c_events) < len(timeslots):
-            print(browser_url)
-            c_event_set = set()
-            new_event_times = []
-            for e in c_events:
-                print('#', e['start_date'])
-                c_event_set.add(e['start_date'])
-            for s in timeslots:
-                slot = s['start_date']
-                time = datetime.datetime.fromtimestamp(slot).strftime('%Y-%m-%d %H:%M:%S')
-                if time not in c_event_set:
-                    new_event_times.append(str(slot))
-                    print(time)
-            records.append([m_event['title'], browser_url, ','.join(new_event_times)])
-            if c_events:
-                print(c_events[0]['url'])
-            print('\n')
-        # t_event_set = set()
-        # for s in timeslots:
-        #     slot = s['start_date']
-        #     time = datetime.datetime.fromtimestamp(slot).strftime('%Y-%m-%d %H:%M:%S')
-        #     t_event_set.add(time)
-        # for e in c_events:
-        #     if e['start_date'] not in t_event_set:
-        #         print('Delete: ', e['url'])
-    out_name = 'new-time-slots-{}.csv'.format(current_date)
-    with open(out_name, mode='w', newline='', encoding='utf-8') as ofile:
-        writer = csv.writer(ofile)
-        writer.writerow(headers)
-        writer.writerows(records)
+        print(url)
+        for event_url in event_urls:
+            print(event_url)
+        print('\n')
 
 
-dump_new_time_slots()
+def main():
+    the_events_calendar.set_global_calendar(sys.argv[1])
+    find_duplicate_calendar_events()
+
+
+main()
+
