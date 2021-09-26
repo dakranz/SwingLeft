@@ -11,7 +11,7 @@ import slack
 import subprocess
 import time
 
-logger = None
+logger = logging.getLogger(__name__)
 success = 0
 warnings = 1
 errors = 2
@@ -154,14 +154,12 @@ def do_calendar_update(kind, log_dir, calendar, dry_run):
 
 def download_timestamps(calendar):
     download_file(calendar + '-mobilize-timestamp.txt')
-    if 'news-magic' in calendar:
-        download_file(calendar + '-slack-timestamp.txt')
+    download_file(calendar + '-slack-timestamp.txt')
 
 
 def upload_timestamps(calendar):
     upload_file(calendar + '-mobilize-timestamp.txt')
-    if 'news-magic' in calendar:
-        upload_file(calendar + '-slack-timestamp.txt')
+    upload_file(calendar + '-slack-timestamp.txt')
 
 
 def run_calendar_update(calendar, is_local, dry_run):
