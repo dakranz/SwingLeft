@@ -5,11 +5,13 @@ from dateutil import parser
 import re
 from pprint import pprint
 import shutil
+import time
 
 import action_network
 
 _parser = argparse.ArgumentParser()
 _parser.add_argument("-s", "--start", help="Timestamp or datetime for oldest record to process.")
+_parser.add_argument("-y", "--dry_run", action="store_true", help="Process but do not upload.")
 _parser.add_argument("-e", "--end", help="Timestamp or datetime for newest record to process.")
 _parser.add_argument("-t", "--timestamp", action="store_true",
                     help="Use value in mobilize-action-network-timestamp.txt as oldest event to process, current time "
@@ -36,15 +38,15 @@ def get_recency(date):
     return year + 'Q1'
 
 
-event_type_map = {'CANVASS': 'Canvass', 'PHONE_BANK': 'Phonebank', 'TEXT_BANK': 'Textbank',
-                  'MEETING': 'Other', 'COMMUNITY': 'Social', 'FUNDRAISER': 'Other', 'MEET_GREET': 'Social',
-                  'HOUSE_PARTY': 'Social', 'VOTER_REG': 'Other', 'TRAINING': 'Training',
-                  'FRIEND_TO_FRIEND_OUTREACH': 'Social', 'DEBATE_WATCH_PARTY': 'Social', 'ADVOCACY_CALL': 'Phonebank',
+event_type_map = {'CANVASS': 'Canvass', 'PHONE_BANK': 'PhoneBank', 'TEXT_BANK': 'TextBank',
+                  'MEETING': 'Other', 'COMMUNITY': 'Other', 'FUNDRAISER': 'Fundraiser', 'MEET_GREET': 'Other',
+                  'HOUSE_PARTY': 'Other', 'VOTER_REG': 'PhoneBank', 'TRAINING': 'Other',
+                  'FRIEND_TO_FRIEND_OUTREACH': 'Other', 'DEBATE_WATCH_PARTY': 'Other', 'ADVOCACY_CALL': 'PhoneBank',
                   'RALLY': 'Other', 'TOWN_HALL': 'Other', 'OFFICE_OPENING': 'Other', 'BARNSTORM': 'Other',
-                  'SOLIDARITY_EVENT': 'Social', 'COMMUNITY_CANVASS': 'Canvass', 'SIGNATURE_GATHERING': 'Canvass',
-                  'CARPOOL': 'Other', 'WORKSHOP': 'Other', 'PETITION': 'Other', 'AUTOMATED_PHONE_BANK': 'Phonebank',
-                  'LETTER_WRITING': 'Letter', 'LITERATURE_DROP_OFF': 'Other', 'VISIBILITY_EVENT': 'Other',
-                  'SOCIAL_MEDIA_CAMPAIGN': 'Other', 'POSTCARD_WRITING': 'Postcard', 'OTHER': 'Other'}
+                  'SOLIDARITY_EVENT': 'Other', 'COMMUNITY_CANVASS': 'Canvass', 'SIGNATURE_GATHERING': 'Canvass',
+                  'CARPOOL': 'Canvass', 'WORKSHOP': 'Other', 'PETITION': 'Other', 'AUTOMATED_PHONE_BANK': 'PhoneBank',
+                  'LETTER_WRITING': 'Mailing', 'LITERATURE_DROP_OFF': 'Other', 'VISIBILITY_EVENT': 'Other',
+                  'SOCIAL_MEDIA_CAMPAIGN': 'Other', 'POSTCARD_WRITING': 'Mailing', 'OTHER': 'Other'}
 
 states = {"FL": ["FL", "Florida"],
           "GA": ["GA", "Georgia"],
@@ -76,16 +78,17 @@ def get_event_data(co_hosts, description, event_owner_email_address, event_type,
         organization_name = 'All in for NC'
     elif 'Org: Ma Flip Pa' in tags:
         organization_name = 'MAFlipPA'
-    elif organization_name == 'Swing Left Greater Boston / Swing Blue Alliance':
-        organization_name = 'Swing Blue Alliance'
-    data['org'] = organization_name
+    elif organization_name == 'Swing Blue Alliance':
+        organization_name = 'SBA'
+    data['org'] = organization_name[0:20]
     data['type'] = event_type_map.get(event_type, 'Other')
     data['state'] = get_state(description)
     return data
 
 
 def create_action_network_tag(event_data, start, role):
-    return '|'.join([event_data['org'], role, event_data['type'], event_data['state'], get_recency(start)])
+    # Add | at begin and end
+    return '|'.join(['', event_data['org'], role, event_data['type'], event_data['state'], get_recency(start), ''])
 
 
 def create_event_map(event_path):
@@ -103,12 +106,12 @@ def create_event_map(event_path):
                                                               record[iheaders.index('event_type')],
                                                               record[iheaders.index('organization_name')],
                                                               record[iheaders.index('tags')],
-                                                              record[iheaders.index('created_at')])
+                                                              record[iheaders.index('created_at')][0:10])
     return event_map
 
 
 # Upload records to action network from mobilize shift data. Start and end are as %Y-%m-%d %H:%M:%S
-def mobilize_america_to_action_network(shift_path, event_path, start, end):
+def mobilize_america_to_action_network(shift_path, event_path, start, end, dry_run):
     event_map = create_event_map(event_path)
     people = {}
     tags = set()
@@ -125,11 +128,12 @@ def mobilize_america_to_action_network(shift_path, event_path, start, end):
 
         # Record participants
         for record in reader:
-            if record[start_index] <= start or record[start_index] > end:
+            record_start = record[start_index][0:10]
+            if record_start < start or record_start >= end:
                 continue
             if record[eid_index] not in event_map:
                 continue
-            new_tag = create_action_network_tag(event_map[record[eid_index]], record[start_index], 'Participant')
+            new_tag = create_action_network_tag(event_map[record[eid_index]], record_start, 'Participant')
             tags.add(new_tag)
             email = record[email_index]
             people_entry = people.get(email, None)
@@ -161,6 +165,7 @@ def mobilize_america_to_action_network(shift_path, event_path, start, end):
     records = []
     for email, data in people.items():
         add_tags = [tag for tag in data['tags']]
+        add_tags.append('Misc: SBA Newsletter Subscriber')
         if len(data) == 1:
             records.append([email, ','.join(add_tags), "", "", "", ""])
             person_data = {"email_addresses": [{"address": email}]}
@@ -179,9 +184,23 @@ def mobilize_america_to_action_network(shift_path, event_path, start, end):
         writer.writerows(records)
     print(out_name)
     new_tags = tags.difference(set(action_network.get_tags()))
-    # for tag_name in new_tags:
-    #     xxction_network.add_tag(tag_name)
-    # xxction_network.add_people(people_data)
+
+    # people_data = people_data[0:10]
+    # new_tags = set()
+    # for person in people_data:
+    #     for tag in person['add_tags']:
+    #         new_tags.add(tag)
+    #
+    for tag_name in new_tags:
+        print(tag_name)
+        if not dry_run:
+            action_network.add_tag(tag_name)
+            time.sleep(.2)
+    for person in people_data:
+        print(person['person']['email_addresses'][0]['address'])
+        if not dry_run:
+            action_network.add_person(person)
+            time.sleep(.2)
 
 
 def string_to_date_string(s):
@@ -189,30 +208,32 @@ def string_to_date_string(s):
         date_time = datetime.datetime.fromtimestamp(float(s))
     except ValueError:
         date_time = parser.parse(s)
-    return date_time.strftime("%Y-%m-%d %H:%M:%S")
+    return date_time.strftime("%Y-%m-%d")
 
 
 def main():
     if not (args.timestamp or args.start and args.end):
         print('Must specify -t or --start and --end')
         exit(1)
-    now = datetime.datetime.now().timestamp()
     if args.timestamp:
-        with open('mobilize-action-network-timestamp.txt') as f:
+        with open('mobilize-to-action-network-timestamp.txt') as f:
             try:
                 start = string_to_date_string(f.read().strip())
-                end = string_to_date_string(now)
+                end = args.shift_export[0:10]
             except FileNotFoundError:
                 print('No timestamp file')
                 exit(1)
     else:
         start = string_to_date_string(args.start)
-        end = string_to_date_string(args.end if args.end == 0 else now)
-    mobilize_america_to_action_network(args.shift_export, args.event_export, start, end)
+        end = string_to_date_string(args.end)
+    mobilize_america_to_action_network(args.shift_export, args.event_export, start, end, args.dry_run)
     if args.timestamp or args.update_timestamp:
-        shutil.copy('mobilize-action-network-timestamp.txt', 'mobilize-action-network-timestamp-last.txt')
-        with open('mobilize-action-network-timestamp.txt', 'w') as f:
-            f.write(str(now))
+        try:
+            shutil.copy('mobilize-to-action-network-timestamp.txt', 'mobilize-to-action-network-timestamp-last.txt')
+        except FileNotFoundError:
+            pass
+        with open('mobilize-to-action-network-timestamp.txt', 'w') as f:
+            f.write(args.shift_export[0:10])
 
 
 # entry_point = 'https://api.mobilize.us/v1/'

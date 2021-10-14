@@ -73,7 +73,7 @@ def mobilize_event_feed(start):
     return process_event_feed(get_mobilize_events(start))
 
 
-def process_event_feed(event_list):
+def process_event_feed(event_list, force=False):
     current_date = datetime.datetime.now().strftime("%Y-%m-%d %H;%M;%S")
     event_list.sort(key=operator.itemgetter('created_date'), reverse=True)
     records = []
@@ -82,7 +82,7 @@ def process_event_feed(event_list):
         if event['id'] in skip_list:
             print('Skipping: ' + event['title'])
             continue
-        event_data = mobilize_to_calendar.mobilize_to_calendar(event)
+        event_data = mobilize_to_calendar.mobilize_to_calendar(event, force)
         if event_data is not None:
             records.extend(event_data)
     if len(records) == 0:
@@ -115,7 +115,7 @@ def main():
                 print('No timestamp file')
                 exit(1)
     elif args.url:
-        process_event_feed([get_mobilize_event(url) for url in args.url])
+        process_event_feed([get_mobilize_event(url) for url in args.url], force=True)
         return
     if update_timestamp:
         try:

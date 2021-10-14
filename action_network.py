@@ -6,17 +6,10 @@ api_header = {'Content-Type': 'application/json', 'OSDI-API-Token': api_key.acti
 
 
 def add_person(data):
-    url = entry_point + 'people/'
+    url = entry_point + 'people?background_request=true'
     r = requests.post(url, json=data, headers=api_header)
     assert r.status_code == 200, r.text
     return r.json()
-
-
-def add_people(people):
-    url = entry_point + 'people?background_request=true'
-    for data in people:
-        r = requests.post(url, json=data, headers=api_header)
-        assert r.status_code == 200, r.text
 
 
 def get_person(email):

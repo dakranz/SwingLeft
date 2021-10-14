@@ -40,7 +40,7 @@ def get_event_organizer(event):
     return org
 
 
-def mobilize_to_calendar(event):
+def mobilize_to_calendar(event, force):
     event_url = event['browser_url']
     event_organizer = get_event_organizer(event)
     # Mobilize uses markdown. There are many variants but we hope this markdown package will do no harm.
@@ -57,10 +57,10 @@ def mobilize_to_calendar(event):
         state = event['location']['region']
         zip_code = event['location']['postal_code']
         # Skip outside MA
-        if zip_code >= '02800' and sponsor not in events.inside_orgs:
+        if zip_code >= '02800' and sponsor not in events.inside_orgs and not force:
             return None
     # Skip events with no location unless sponsored by us or a close sponsor
-    if not (city or zip_code or sponsor in events.inside_orgs):
+    if not (city or zip_code or sponsor in events.inside_orgs or force):
         return None
     categories = []
     region = ''
@@ -80,7 +80,7 @@ def mobilize_to_calendar(event):
     # For the grassroots news-magic calendar we only post Swing Blue Alliance events. For the Swing Blue Alliance
     # calendar we also post promoted events that are locally hosted and part of a target state campaign.
     if sponsor not in events.inside_orgs:
-        if 'news-magic' in the_events_calendar.calendar_name or not is_target_state:
+        if not force and ('news-magic' in the_events_calendar.calendar_name or not is_target_state):
             return None
     if 'event_type' not in event:
         the_events_calendar.add_activity_categories(categories, text, event['title'])
