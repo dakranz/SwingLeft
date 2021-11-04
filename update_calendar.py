@@ -4,6 +4,7 @@ import datetime
 import logging
 import requests
 from pprint import pformat
+import time
 
 import events
 import the_events_calendar
@@ -199,12 +200,19 @@ def update_calendar(path):
             logger.debug("post data: %s", pformat(post_data))
             if args.dry_run:
                 continue
-            if event is None:
-                r = create_event(post_data)
-            else:
-                r = update_event(event['id'], post_data)
-            if not r.ok:
-                logger.error(r.text)
+            r = None
+            for i in range(1, 4):
+                if event is None:
+                    r = create_event(post_data)
+                else:
+                    r = update_event(event['id'], post_data)
+                if r.ok:
+                    break
+                logger.info("Server error: %s", r.text)
+                r = None
+                time.sleep(i * 5)
+            if r is None:
+                logger.error("Retries failed")
                 continue
             returned_data = r.json()
             logger.info("Returned: %s %s", returned_data['id'], returned_data['url'])

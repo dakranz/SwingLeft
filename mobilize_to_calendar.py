@@ -35,8 +35,6 @@ def get_event_organizer(event):
     org = event['sponsor']['name']
     if org == 'JP Progressives':
         return 'Jamaica Plain Progressives'
-    if org == 'Swing Left Greater Boston / Swing Blue Alliance':
-        return 'Swing Blue Alliance'
     return org
 
 
@@ -57,11 +55,11 @@ def mobilize_to_calendar(event, force):
         state = event['location']['region']
         zip_code = event['location']['postal_code']
         # Skip outside MA
-        if zip_code >= '02800' and sponsor not in events.inside_orgs and not force:
-            return None
+#        if zip_code >= '02800' and sponsor not in events.inside_orgs and not force:
+#            return None
     # Skip events with no location unless sponsored by us or a close sponsor
-    if not (city or zip_code or sponsor in events.inside_orgs or force):
-        return None
+#    if not (city or zip_code or sponsor in events.inside_orgs or force):
+#        return None
     categories = []
     region = ''
     if state in regions.state_categories:
@@ -80,7 +78,8 @@ def mobilize_to_calendar(event, force):
     # For the grassroots news-magic calendar we only post Swing Blue Alliance events. For the Swing Blue Alliance
     # calendar we also post promoted events that are locally hosted and part of a target state campaign.
     if sponsor not in events.inside_orgs:
-        if not force and ('news-magic' in the_events_calendar.calendar_name or not is_target_state):
+        # if not force and ('news-magic' in the_events_calendar.calendar_name or not is_target_state):
+        if not force and ('news-magic' in the_events_calendar.calendar_name):
             return None
     if 'event_type' not in event:
         the_events_calendar.add_activity_categories(categories, text, event['title'])
@@ -94,18 +93,18 @@ def mobilize_to_calendar(event, force):
             event_venue_name = '{}, {}'.format(city, state)
         else:
             event_name = event['title']
-            event_venue_name = ''
+            event_venue_name = 'Online/Anywhere'
     else:
         event_name = event['title']
         event_venue_name = 'Online/Anywhere'
     now = int(datetime.datetime.now().timestamp())
     time_slots = [slot for slot in event['timeslots'] if slot['start_date'] > now]
     # Skip daily events
-    if len(time_slots) > 5:
-        interval = time_slots[1]['start_date'] - time_slots[0]['start_date']
-        if 23 * 3600 < interval < 25 * 3600:
-            logger.info('Skipping daily event: %s', event['browser_url'])
-            return None
+    # if len(time_slots) > 5:
+    #     interval = time_slots[1]['start_date'] - time_slots[0]['start_date']
+    #     if 23 * 3600 < interval < 25 * 3600:
+    #         logger.info('Skipping daily event: %s', event['browser_url'])
+    #         return None
     event_records = []
     for time_slot in time_slots:
         start = datetime.datetime.fromtimestamp(time_slot['start_date'])

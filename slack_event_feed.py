@@ -213,12 +213,6 @@ def process_slack_messages(messages):
         elif args.search is not None:
             logger.info(pformat(message))
         logger.info(pformat(header_block))
-        if 'mobilize.us/swingleftbos' in description:
-            logger.info('Ignoring message with swing left boston mobilize event')
-            continue
-        if 'mobilize.us/sba' in description:
-            logger.info('Ignoring message with sba mobilize event')
-            continue
         if 'mobilize.us/swingbluealliance' in description:
             logger.info('Ignoring message with swing blue alliance mobilize event')
             continue

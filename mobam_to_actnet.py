@@ -227,6 +227,8 @@ def main():
         start = string_to_date_string(args.start)
         end = string_to_date_string(args.end)
     mobilize_america_to_action_network(args.shift_export, args.event_export, start, end, args.dry_run)
+    if args.dry_run:
+        return
     if args.timestamp or args.update_timestamp:
         try:
             shutil.copy('mobilize-to-action-network-timestamp.txt', 'mobilize-to-action-network-timestamp-last.txt')

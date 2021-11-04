@@ -24,7 +24,7 @@ skip_list = {}
 
 # inside_orgs = ['swingleftboston', 'togetherfor2020', 'swingleftnorthshore',
 #                'indivisiblenorthampton', 'indivisiblegreaterandover', 'indivisibleacton-area', 'jp-progressives']
-inside_orgs = ['swingleftboston', 'swingbluealliance']
+inside_orgs = ['swingbluealliance']
 
 
 def prefix(path):

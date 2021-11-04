@@ -40,8 +40,6 @@ def get_mobilize_event(url):
     assert r.ok, r.text
     event = r.json()['data']
     browser_url = event['browser_url']
-    if 'swingleftboston' in browser_url:
-        event['browser_url'] = browser_url.replace('swingleftboston', 'swingbluealliance')
     return event
 
 
@@ -59,8 +57,6 @@ def get_mobilize_events(since):
         for event in j_data['data']:
             browser_url = event['browser_url']
             if browser_url is not None:
-                if 'swingleftboston' in browser_url:
-                    event['browser_url'] = browser_url.replace('swingleftboston', 'swingbluealliance')
                 event_list.append(event)
         next_url = j_data['next']
         if next_url is None:
