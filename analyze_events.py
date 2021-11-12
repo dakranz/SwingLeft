@@ -1,25 +1,26 @@
-import re
 import sys
 
 import events
 import the_events_calendar
 
-GRUBER_URLINTEXT_PAT = re.compile(r'(?i)\b((?:https?://|www\d{0,3}[.]|[a-z0-9.\-]+[.][a-z]{2,4}/)(?:[^\s()<>]+|\(([^\s()<>]+|(\([^\s()<>]+\)))*\))+(?:\(([^\s()<>]+|(\([^\s()<>]+\)))*\)|[^\s`!()\[\]{};:\'".,<>?\xab\xbb\u201c\u201d\u2018\u2019]))')
-
-
-def get_urls(text):
-    return [matches[0] for matches in GRUBER_URLINTEXT_PAT.findall(text) if matches[0] != 'http://news-magic.org/']
-
-
-skip_list = {'news-magic': ['https://www.mobilize.us/indivisiblegreaterandover/event/411938/'],
+skip_list = {'news-magic': [],
              'sba': []}
+
+
+def canonicalize_url(url):
+    if 'mobilize.us/' not in url:
+        return url
+    parts = url.split(sep='/')
+    mobilize_id = parts[-2] if url[-1] == '/' else parts[-1]
+    return 'https://www.mobilize.us/swingbluealliance/event/{}/'.format(mobilize_id)
 
 
 def find_duplicate_calendar_events():
     all_events = events.get_calendar_events()
     url_map = {}
     for event in all_events:
-        for url in get_urls(event['description']):
+        for url in events.get_urls(event['description']):
+            url = canonicalize_url(url)
             candidate = (url, event['start_date'])
             if candidate in url_map:
                 url_map[candidate].add(event['url'])

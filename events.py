@@ -1,6 +1,7 @@
 import datetime
 import json
 import logging
+import re
 import requests
 import sys
 import urllib.parse
@@ -14,6 +15,16 @@ sh.setFormatter(logging.Formatter('%(levelname)s - %(message)s'))
 logger.addHandler(sh)
 
 use_saved_data = False
+
+GRUBER_URLINTEXT_PAT = re.compile(r'(?i)\b((?:https?://|www\d{0,3}[.]|[a-z0-9.\-]+[.][a-z]{2,4}/)(?:[^\s()<>]+|\(([^\s()<>]+|(\([^\s()<>]+\)))*\))+(?:\(([^\s()<>]+|(\([^\s()<>]+\)))*\)|[^\s`!()\[\]{};:\'".,<>?\xab\xbb\u201c\u201d\u2018\u2019]))')
+
+
+def get_urls(text):
+    return [matches[0] for matches in GRUBER_URLINTEXT_PAT.findall(text) if matches[0] != 'http://news-magic.org/']
+
+
+def get_mobilize_urls(text):
+    return [matches[0] for matches in GRUBER_URLINTEXT_PAT.findall(text) if 'mobilize.us/' in matches[0]]
 
 
 def calendar_api_base_url():

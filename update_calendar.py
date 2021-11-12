@@ -109,12 +109,21 @@ def get_category_ids(metadata, slugs):
     return [get_category_id(metadata, slug) for slug in slugs]
 
 
-def get_existing_event(event_map, post_data, processed_mobilize_ids):
+def get_existing_event(event_map, post_data, processed_mobilize_ids, exact_match):
     website = post_data['website']
     if 'mobilize.us' not in website:
         return None
     mobilize_id = events.get_event_id(website)
     if mobilize_id not in event_map:
+        return None
+    calendar_events = event_map[mobilize_id]
+    # For events being posted from news-magic or other non-mobilize sources, we do not want to overwrite an existing
+    # event. So we only allow an exact match of date and time.
+    if exact_match:
+        start_date = post_data['start_date']
+        for event in calendar_events:
+            if event['start_date'] == start_date:
+                return event
         return None
     # We try to match mobilize slots and calendar events with the same day. Each time we find an event, we remove it
     # from the list of calendar events for that mobilize event. After all slots for a mobilize event have been
@@ -122,7 +131,6 @@ def get_existing_event(event_map, post_data, processed_mobilize_ids):
     processed_mobilize_ids.add(mobilize_id)
     # The dates that come in here are a date string and time string separated by whitespace.
     start_date = post_data['start_date'].split()[0]
-    calendar_events = event_map[mobilize_id]
     for event in calendar_events:
         if event['start_date'].split()[0] == start_date:
             calendar_events.remove(event)
@@ -137,6 +145,7 @@ def comma_list(s):
 
 
 def update_calendar(path):
+    update_allowed = 'mobilize' in path
     with open(path, newline='', encoding='utf-8') as ifile:
         reader = csv.reader(ifile)
         headers = next(reader)
@@ -187,9 +196,11 @@ def update_calendar(path):
                 post_data['venue'] = {'id': venue_id}
             if organizer_id:
                 post_data['organizer'] = {'id': organizer_id}
-            event = get_existing_event(event_map, post_data, processed_mobilize_ids)
+            event = get_existing_event(event_map, post_data, processed_mobilize_ids, update_allowed)
             if event is not None:
                 # Do not update manually created events
+                if not update_allowed:
+                    continue
                 if str(event['author']) != the_events_calendar.wordpress_automation_author_id:
                     logger.info("Skipping manually created event %s: %s", event['id'], event['rest_url'])
                     continue
@@ -217,6 +228,8 @@ def update_calendar(path):
             returned_data = r.json()
             logger.info("Returned: %s %s", returned_data['id'], returned_data['url'])
             logger.debug(pformat(returned_data))
+        if not update_allowed:
+            return
         # The sublists here contain events that no longer had a slot in mobilize and should be deleted.
         now = datetime.datetime.now()
         for mobilize_id in processed_mobilize_ids:

@@ -30,7 +30,7 @@ entry_point = 'https://api.mobilize.us/v1/'
 api_header = {'Content-Type': 'application/json'}
 
 
-skip_list = [389926]
+skip_list = []
 
 
 def get_mobilize_event(url):

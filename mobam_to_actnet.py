@@ -51,7 +51,6 @@ event_type_map = {'CANVASS': 'Canvass', 'PHONE_BANK': 'PhoneBank', 'TEXT_BANK': 
 states = {"FL": ["FL", "Florida"],
           "GA": ["GA", "Georgia"],
           "NH": ["NH", "New Hampshire"],
-          "VA": ["VA", "Virginia"],
           "NC": ["NC", "North Carolina"],
           "PA": ["PA", "Pennsylvania"],
           }

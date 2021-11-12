@@ -158,6 +158,12 @@ def convert_description(description):
     return markdown.markdown(buf.getvalue())
 
 
+def convert_to_sba(url):
+    parts = url.split(sep='/')
+    mobilize_id = parts[-2] if url[-1] == '/' else parts[-1]
+    return 'https://www.mobilize.us/swingbluealliance/event/{}/'.format(mobilize_id)
+
+
 def infer_organizer(organizers, specified_org, title, description):
     organizer = the_events_calendar.infer_organizer(organizers, specified_org, title, description)
     if organizer is not None:
@@ -216,13 +222,17 @@ def process_slack_messages(messages):
         if 'mobilize.us/swingbluealliance' in description:
             logger.info('Ignoring message with swing blue alliance mobilize event')
             continue
+        website = ''
+        mobilize_urls = events.get_mobilize_urls(description)
+        if len(mobilize_urls) == 1:
+            website = convert_to_sba(mobilize_urls[0])
+            logger.info('Mobilize url: %s', website)
         organizer = ''
         venue = 'Online/Anywhere'
         title = remove_markdown(header_block[0])
         text = title + ' ' + description
         categories = []
         tags = []
-        the_events_calendar.add_activity_categories(categories, text, title)
         for attachment in attachments:
             if 'channel_name' in attachment:
                 tags.append(attachment['channel_name'])
@@ -247,6 +257,8 @@ def process_slack_messages(messages):
                 if tag is not None:
                     tags[0] = tag
         date_lines = []
+        city = ''
+        state = ''
         for line in header_block[1:]:
             # remove markup bold
             line = line.replace('*', '').strip()
@@ -263,10 +275,11 @@ def process_slack_messages(messages):
             elif key == 'rsvp':
                 description = '{}\n\nRSVP: {}'.format(description, value)
             elif key == 'activity':
-                categories = [value]
+                if not the_events_calendar.add_activity_categories(categories, value, ''):
+                    categories = []
             elif key == 'location':
                 # Should be city, state
-                match = re.match(r'(\w+)\s*,\s*(\w\w)\Z', value)
+                match = re.match(r'([\w\s]+)\s*,\s*(\w\w)\Z', value)
                 if match is None:
                     logger.warning("Bad location: %s", value)
                     continue
@@ -274,6 +287,8 @@ def process_slack_messages(messages):
                 state = match[2].upper()
                 venue = '{}, {}'.format(city, state)
                 title = '{}, {} - {}'.format(city.upper(), state, title)
+        if not categories:
+            the_events_calendar.add_activity_categories(categories, text, title)
         description = convert_description(description)
         if organizers is None:
             organizers = events.get_calendar_metadata('organizers')['organizers']
@@ -300,7 +315,7 @@ def process_slack_messages(messages):
             event_end_date = end_dt.strftime("%Y-%m-%d")
             event_end_time = end_dt.strftime("%H:%M:00")
             event_record = [title, description, organizer, venue, event_start_date,
-                            event_start_time, event_end_date, event_end_time, '', '', '',
+                            event_start_time, event_end_date, event_end_time, website, city, state,
                             ','.join(categories), ','.join(tags), '', '']
             records.append(event_record)
             logger.info("start: %s %s end: %s %s", event_start_date, event_start_time, event_end_date, event_end_time)

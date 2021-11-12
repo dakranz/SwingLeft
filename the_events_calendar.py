@@ -52,19 +52,20 @@ activities = {"canvassing": ["canvas"],
               "phone-banking": ["phone"],
               "letters-postcards": [" letter", "postcard", "post card", "pick up", "pick up", "pick-up"],
               "texting": ["texting", "text bank", "textbank"],
-              "fundraiser": ["fundrai"],
+              "fundraisers": ["fundrai"],
               "training": ["training"],
-              "rallies": ["rally", "rallies"]
+              "rallies": ["rally", "rallies"],
+              "activism-huddle": ["activism huddle"]
               }
 
 mobilize_event_type_map = {'CANVASS': 'canvassing', 'PHONE_BANK': 'phone-banking', 'TEXT_BANK': 'texting',
-                           'MEETING': 'meeting', 'COMMUNITY': 'meeting', 'FUNDRAISER': 'fundraiser', 'MEET_GREET': None,
+                           'MEETING': 'meeting', 'COMMUNITY': 'meeting', 'FUNDRAISER': 'fundraisers', 'MEET_GREET': None,
                            'HOUSE_PARTY': 'meeting', 'VOTER_REG': 'phone-banking', 'TRAINING': 'training',
                            'FRIEND_TO_FRIEND_OUTREACH': None, 'DEBATE_WATCH_PARTY': 'meeting', 'ADVOCACY_CALL': None,
                            'RALLY': 'rallies', 'TOWN_HALL': None, 'OFFICE_OPENING': None, 'BARNSTORM': None,
                            'SOLIDARITY_EVENT': None, 'COMMUNITY_CANVASS': 'canvassing', 'SIGNATURE_GATHERING': None,
                            'CARPOOL': 'travel', 'WORKSHOP': None, 'PETITION': None, 'AUTOMATED_PHONE_BANK': 'phone-banking',
-                           'LETTER_WRITING': 'letters-postcards', 'LITERATURE_DROP_OFF': None, 'VISIBILITY_EVENT': None,
+                           'LETTER_WRITING': 'letters-postcards', 'LITERATURE_DROP_OFF': None, 'VISIBILITY_EVENT': 'rallies',
                            'SOCIAL_MEDIA_CAMPAIGN': None, 'POSTCARD_WRITING': 'letters-postcards', 'OTHER': None}
 
 
@@ -76,7 +77,6 @@ def has_real_venue(categories):
 states = {"florida": ["FL", "Florida"],
           "georgia": ["GA", "Georgia"],
           "new-hampshire": ["NH", "New Hampshire"],
-          "virginia": ["VA", "Virginia"],
           "north-carolina": ["NC", "North Carolina"],
           "pennsylvania": ["PA", "Pennsylvania"],
           }
@@ -113,8 +113,12 @@ def add_activity_categories(category_list, text, title):
                 category_list.append(category)
                 added = True
                 break
+    if 'fundraisers' in category_list:
+        category_list.clear()
+        category_list.append('fundraisers')
     if not added:
         category_list.append('meeting')
+    return added
 
 
 def add_tags(tag_list, text):
