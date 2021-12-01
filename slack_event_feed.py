@@ -158,9 +158,11 @@ def convert_description(description):
     return markdown.markdown(buf.getvalue())
 
 
-def convert_to_sba(url):
-    parts = url.split(sep='/')
-    mobilize_id = parts[-2] if url[-1] == '/' else parts[-1]
+def convert_mobilize_url_to_sba(url):
+    parts = re.match(r'http.*/event/(\d*)', url)
+    if not parts:
+        return ''
+    mobilize_id = parts[1]
     return 'https://www.mobilize.us/swingbluealliance/event/{}/'.format(mobilize_id)
 
 
@@ -225,8 +227,11 @@ def process_slack_messages(messages):
         website = ''
         mobilize_urls = events.get_mobilize_urls(description)
         if len(mobilize_urls) == 1:
-            website = convert_to_sba(mobilize_urls[0])
-            logger.info('Mobilize url: %s', website)
+            website = convert_mobilize_url_to_sba(mobilize_urls[0])
+            if website:
+                logger.info('Mobilize url: %s', website)
+            else:
+                logger.warning("Could not convert mobilize url: %s", mobilize_urls[0])
         organizer = ''
         venue = 'Online/Anywhere'
         title = remove_markdown(header_block[0])
