@@ -81,7 +81,7 @@ def mobilize_to_calendar(event, force):
         # if not force and ('news-magic' in the_events_calendar.calendar_name or not is_target_state):
         if not force and ('news-magic' in the_events_calendar.calendar_name):
             return None
-    if 'event_type' not in event:
+    if 'event_type' not in event or the_events_calendar.lookup_mobilize_event_type(event['event_type']) is None:
         the_events_calendar.add_activity_categories(categories, text, event['title'])
     else:
         category = the_events_calendar.lookup_mobilize_event_type(event['event_type'])
@@ -98,7 +98,7 @@ def mobilize_to_calendar(event, force):
         event_name = event['title']
         event_venue_name = 'Online/Anywhere'
     now = int(datetime.datetime.now().timestamp())
-    time_slots = [slot for slot in event['timeslots'] if slot['start_date'] > now]
+    time_slots = [slot for slot in event['timeslots'] if slot['end_date'] > now]
     # Skip daily events
     # if len(time_slots) > 5:
     #     interval = time_slots[1]['start_date'] - time_slots[0]['start_date']

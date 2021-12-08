@@ -60,7 +60,7 @@ activities = {"canvassing": ["canvas"],
 
 mobilize_event_type_map = {'CANVASS': 'canvassing', 'PHONE_BANK': 'phone-banking', 'TEXT_BANK': 'texting',
                            'MEETING': 'meeting', 'COMMUNITY': 'meeting', 'FUNDRAISER': 'fundraisers', 'MEET_GREET': None,
-                           'HOUSE_PARTY': 'meeting', 'VOTER_REG': 'phone-banking', 'TRAINING': 'training',
+                           'HOUSE_PARTY': 'meeting', 'VOTER_REG': None, 'TRAINING': 'training',
                            'FRIEND_TO_FRIEND_OUTREACH': None, 'DEBATE_WATCH_PARTY': 'meeting', 'ADVOCACY_CALL': None,
                            'RALLY': 'rallies', 'TOWN_HALL': None, 'OFFICE_OPENING': None, 'BARNSTORM': None,
                            'SOLIDARITY_EVENT': None, 'COMMUNITY_CANVASS': 'canvassing', 'SIGNATURE_GATHERING': None,
