@@ -226,7 +226,7 @@ def process_slack_messages(messages):
             continue
         website = ''
         mobilize_urls = events.get_mobilize_urls(description)
-        if len(mobilize_urls) == 1:
+        if len(mobilize_urls) >= 1:
             website = convert_mobilize_url_to_sba(mobilize_urls[0])
             if website:
                 logger.info('Mobilize url: %s', website)
@@ -245,19 +245,19 @@ def process_slack_messages(messages):
             logger.warning("No channel name in attachments.")
             continue
         if 'news-magic' not in the_events_calendar.calendar_name:
-            if tags[0] == 'democracy-out-of-state':
+            if tags[0] == 'elections-out-of-state':
                 tag, out_of_state = the_events_calendar.infer_state_tags(text)
                 if tag is None:
                     logger.info("Non-target-state event not posted to non-news-magic calendar")
                     continue
                 tags[0] = tag
-            elif tags[0] == 'democracy-national':
+            elif tags[0] == 'democracy-reform':
                 tags[0] = 'national'
             else:
                 logger.info("Non-democracy event not posted to non-news-magic calendar")
                 continue
         else:
-            if tags[0] == 'democracy-out-of-state':
+            if tags[0] == 'elections-out-of-state':
                 tag, out_of_state = the_events_calendar.infer_state_tags(text)
                 if tag is not None:
                     tags[0] = tag

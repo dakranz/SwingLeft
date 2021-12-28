@@ -92,7 +92,7 @@ def get_state_tags(tags_list):
         if strings[1] in tags:
             return tag, True
     if 'Democracy-national' in tags:
-        return 'national' if 'news-magic' not in calendar_name else 'democracy-national', False
+        return 'national' if 'news-magic' not in calendar_name else 'democracy-reform', False
     return None, False
 
 

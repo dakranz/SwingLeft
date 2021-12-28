@@ -87,14 +87,12 @@ def mobilize_to_calendar(event, force):
         category = the_events_calendar.lookup_mobilize_event_type(event['event_type'])
         if category is not None:
             categories.append(category)
-    if the_events_calendar.has_real_venue(categories):
-        if city and state:
-            event_name = '{}, {} - {}'.format(city.upper(), state, event['title'])
-            event_venue_name = '{}, {}'.format(city, state)
-        else:
-            event_name = event['title']
-            event_venue_name = 'Online/Anywhere'
+    if not event['is_virtual'] and city and state:
+        event_name = '{}, {} - {}'.format(city.upper(), state, event['title'])
+        event_venue_name = '{}, {}'.format(city, state)
     else:
+        if not event['is_virtual']:
+            logger.warning("Virtual event has no location. City: %s State: %s", city, state)
         event_name = event['title']
         event_venue_name = 'Online/Anywhere'
     now = int(datetime.datetime.now().timestamp())
@@ -123,5 +121,5 @@ def mobilize_to_calendar(event, force):
     num = "[{}]".format(len(event_records))
     created = datetime.datetime.fromtimestamp(event['created_date'])
     modified = datetime.datetime.fromtimestamp(event['modified_date'])
-    logger.info("%s %s %s %s %s %s", created, modified, num, event['title'], event_url, event.get('event_type', ''))
+    logger.info("%s %s %s %s %s %s", created, modified, num, event_name, event_url, event.get('event_type', ''))
     return event_records

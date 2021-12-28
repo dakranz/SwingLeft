@@ -24,7 +24,8 @@ def get_urls(text):
 
 
 def get_mobilize_urls(text):
-    return [matches[0] for matches in GRUBER_URLINTEXT_PAT.findall(text) if 'mobilize.us/' in matches[0]]
+    matches = GRUBER_URLINTEXT_PAT.findall(text)
+    return [match[0] for match in matches if 'mobilize.us/' in match[0] and '/event/' in match[0]]
 
 
 def calendar_api_base_url():
