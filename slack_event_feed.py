@@ -244,6 +244,7 @@ def process_slack_messages(messages):
         if len(tags) == 0:
             logger.warning("No channel name in attachments.")
             continue
+        logger.info("Channel: #%s", tags[0])
         if 'news-magic' not in the_events_calendar.calendar_name:
             if tags[0] == 'elections-out-of-state':
                 tag, out_of_state = the_events_calendar.infer_state_tags(text)

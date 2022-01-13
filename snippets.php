@@ -37,7 +37,7 @@ function slgb_replace( $text = '', $search = [], $replacement = [] ) {
 	return str_replace( $search, $replacement, html_entity_decode( $text, ENT_QUOTES ) );
 }
 
-add_filter( 'tribe_ical_feed_posts_per_page', function() { return 100; } );
+add_filter( 'tribe_ical_feed_posts_per_page', function() { return 200; } );
 
 //add_filter( 'tribe_google_calendar_parameters', 'tec_add_html_description_to_google', 10, 2 );
 //
