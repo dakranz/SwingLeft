@@ -73,6 +73,8 @@ def mobilize_to_calendar(event, force):
     tag, is_target_state = the_events_calendar.get_state_tags(event['tags'])
     if tag is None:
         tag, is_target_state = the_events_calendar.infer_state_tags(text)
+    if tag is None:
+        tag, is_target_state = the_events_calendar.infer_state_tags(event_organizer)
     if tag is not None:
         tags = [tag]
     # For the grassroots news-magic calendar we only post Swing Blue Alliance events. For the Swing Blue Alliance
