@@ -82,6 +82,8 @@ def get_event_data(co_hosts, description, event_owner_email_address, event_type,
     data['org'] = organization_name[0:20]
     data['type'] = event_type_map.get(event_type, 'Other')
     data['state'] = get_state(description)
+    if data['state'] == 'National':
+        data['state'] = get_state(organization_name)
     return data
 
 
