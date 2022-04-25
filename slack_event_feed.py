@@ -158,12 +158,11 @@ def convert_description(description):
     return markdown.markdown(buf.getvalue())
 
 
-def convert_mobilize_url_to_sba(url):
-    parts = re.match(r'http.*/event/(\d*)', url)
+def normalize_mobilize_url(url):
+    parts = re.match(r'(http.*/event/\d*)', url)
     if not parts:
         return ''
-    mobilize_id = parts[1]
-    return 'https://www.mobilize.us/swingbluealliance/event/{}/'.format(mobilize_id)
+    return parts[1] + '/'
 
 
 def infer_organizer(organizers, specified_org, title, description):
@@ -227,7 +226,7 @@ def process_slack_messages(messages):
         website = ''
         mobilize_urls = events.get_mobilize_urls(description)
         if len(mobilize_urls) >= 1:
-            website = convert_mobilize_url_to_sba(mobilize_urls[0])
+            website = normalize_mobilize_url(mobilize_urls[0])
             if website:
                 logger.info('Mobilize url: %s', website)
             else:
@@ -324,7 +323,8 @@ def process_slack_messages(messages):
                             event_start_time, event_end_date, event_end_time, website, city, state,
                             ','.join(categories), ','.join(tags), '', '']
             records.append(event_record)
-            logger.info("start: %s %s end: %s %s", event_start_date, event_start_time, event_end_date, event_end_time)
+            logger.info("%s %s start: %s %s end: %s %s", categories[0], tags[0], event_start_date, event_start_time,
+                        event_end_date, event_end_time)
     if len(records) == 0:
         return
     out_name = '{}--slack-{}-cal-import.csv'.format(the_events_calendar.calendar_name, now.strftime("%Y-%m-%d %H;%M;%S"))
@@ -341,7 +341,7 @@ def main():
     if args.file:
         slack_event_feed_from_file(args.file)
         exit(0)
-    channel = '1-upcoming-events'
+    channel = 'news-magic-dot-org-events'
     if len([x for x in [args.hours, args.timestamp] if x]) != 1:
         print('Must specify exactly one of -t or --hours')
         exit(1)

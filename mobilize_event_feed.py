@@ -5,6 +5,7 @@ import operator
 import requests
 import shutil
 
+import api_key
 import the_events_calendar
 import events
 import mobilize_to_calendar
@@ -27,7 +28,7 @@ parser.add_argument("--update_timestamp", action="store_true",
 args = parser.parse_args()
 
 entry_point = 'https://api.mobilize.us/v1/'
-api_header = {'Content-Type': 'application/json'}
+api_header = {'Content-Type': 'application/json', 'Authorization': 'Bearer ' + api_key.mobilize_key}
 
 
 skip_list = []
@@ -49,7 +50,9 @@ def get_mobilize_events(since):
         update = ''
     else:
         update = '&updated_since={}'.format(since)
-    url = '{}organizations/1535/events?per_page=100{}&timeslot_start=gt_now'.format(entry_point, update)
+    #visibility = '&visibility=PRIVATE&visibility=PUBLIC'
+    visibility = ''
+    url = '{}organizations/1535/events?per_page=100{}&timeslot_start=gt_now{}'.format(entry_point, update, visibility)
     while True:
         r = requests.get(url, headers=api_header)
         assert r.ok, r.text

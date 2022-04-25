@@ -54,7 +54,7 @@ activities = {"canvassing": ["canvas"],
               "texting": ["texting", "text bank", "textbank"],
               "fundraisers": ["fundrai"],
               "training": ["training"],
-              "rallies": ["rally", "rallies"],
+              "rallies": ["rally", "rallies", "standout"],
               "activism-huddle": ["activism huddle"]
               }
 
@@ -86,7 +86,7 @@ def lookup_mobilize_event_type(mobilize_event_type):
     return mobilize_event_type_map.get(mobilize_event_type, None)
 
 
-def get_state_tags(tags_list):
+def get_mobilize_state_tags(tags_list):
     tags = set([tag['name'] for tag in tags_list])
     for tag, strings in states.items():
         if strings[1] in tags:
@@ -99,26 +99,33 @@ def get_state_tags(tags_list):
 def infer_state_tags(text):
     for tag, strings in states.items():
         pattern = '.*\\W{}\\W.*'.format(strings[0])
-        if re.match(pattern, text) or strings[1] in text:
+        if re.search(pattern, text) or strings[1] in text:
             return tag, True
     return None, False
 
 
-def add_activity_categories(category_list, text, title):
+def find_activity_category(text):
     text = text.lower()
-    added = False
     for category, strings in activities.items():
         for s in strings:
             if s in text:
-                category_list.append(category)
-                added = True
-                break
+                return category
+    return None
+
+
+def add_activity_categories(category_list, description, title):
+    category = find_activity_category(title.lower())
+    if category is None:
+        category = find_activity_category(description.lower())
+    if category is not None:
+        category_list.append(category)
     if 'fundraisers' in category_list:
         category_list.clear()
         category_list.append('fundraisers')
-    if not added:
+    if category is None:
         category_list.append('meeting')
-    return added
+        return False
+    return True
 
 
 def add_tags(tag_list, text):

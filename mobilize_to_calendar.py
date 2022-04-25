@@ -38,8 +38,15 @@ def get_event_organizer(event):
     return org
 
 
-def mobilize_to_calendar(event, force):
+def get_event_url(event):
     event_url = event['browser_url']
+    if 'news-magic' in the_events_calendar.calendar_name:
+        return event_url.replace('swingbluealliance', event['sponsor']['slug'])
+    return event_url
+
+
+def mobilize_to_calendar(event, force):
+    event_url = get_event_url(event)
     event_organizer = get_event_organizer(event)
     # Mobilize uses markdown. There are many variants but we hope this markdown package will do no harm.
     # https://github.com/Python-Markdown/markdown
@@ -70,7 +77,7 @@ def mobilize_to_calendar(event, force):
         region = regions.get_ma_region_by_zip(zip_code)
     text = event['title'] + ' ' + event['description']
     tags = []
-    tag, is_target_state = the_events_calendar.get_state_tags(event['tags'])
+    tag, is_target_state = the_events_calendar.get_mobilize_state_tags(event['tags'])
     if tag is None:
         tag, is_target_state = the_events_calendar.infer_state_tags(text)
     if tag is None:
@@ -123,5 +130,6 @@ def mobilize_to_calendar(event, force):
     num = "[{}]".format(len(event_records))
     created = datetime.datetime.fromtimestamp(event['created_date'])
     modified = datetime.datetime.fromtimestamp(event['modified_date'])
-    logger.info("%s %s %s %s %s %s", created, modified, num, event_name, event_url, event.get('event_type', ''))
+    logger.info("%s %s %s %s %s %s %s %s", created, modified, num, event_name, event_url, event.get('event_type', ''),
+                categories[0], tags[0] if tags else '')
     return event_records

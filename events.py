@@ -6,6 +6,7 @@ import requests
 import sys
 import urllib.parse
 
+import api_key
 import the_events_calendar
 
 logger = logging.getLogger(__name__)
@@ -34,9 +35,8 @@ def calendar_api_base_url():
 
 skip_list = {}
 
-# inside_orgs = ['swingleftboston', 'togetherfor2020', 'swingleftnorthshore',
-#                'indivisiblenorthampton', 'indivisiblegreaterandover', 'indivisibleacton-area', 'jp-progressives']
-inside_orgs = ['swingbluealliance']
+inside_orgs = ['swingbluealliance', 'indivisiblegreaterandover', 'indivisiblenorthampton', 'swingleftnorthshore',
+               'jpprogressives', 'swingleftri']
 
 
 def prefix(path):
@@ -47,10 +47,12 @@ def get_mobilize_events():
     if use_saved_data:
         return load_mobilize_events()
     events = []
+    #url = 'https://api.mobilize.us/v1/organizations/1535/events?per_page=100&timeslot_start=gt_now&visibility=PRIVATE&visibility=PUBLIC'
     url = 'https://api.mobilize.us/v1/organizations/1535/events?per_page=100&timeslot_start=gt_now'
+    headers = {'Content-Type': 'application/json', 'Authorization': 'Bearer ' + api_key.mobilize_key}
     while True:
         logger.info(url)
-        r = requests.get(url)
+        r = requests.get(url, headers=headers)
         assert r.ok, r.text
         j_data = r.json()
         for event in j_data['data']:

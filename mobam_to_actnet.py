@@ -42,7 +42,7 @@ event_type_map = {'CANVASS': 'Canvass', 'PHONE_BANK': 'PhoneBank', 'TEXT_BANK': 
                   'MEETING': 'Other', 'COMMUNITY': 'Other', 'FUNDRAISER': 'Fundraiser', 'MEET_GREET': 'Other',
                   'HOUSE_PARTY': 'Other', 'VOTER_REG': 'PhoneBank', 'TRAINING': 'Other',
                   'FRIEND_TO_FRIEND_OUTREACH': 'Other', 'DEBATE_WATCH_PARTY': 'Other', 'ADVOCACY_CALL': 'PhoneBank',
-                  'RALLY': 'Other', 'TOWN_HALL': 'Other', 'OFFICE_OPENING': 'Other', 'BARNSTORM': 'Other',
+                  'RALLY': 'Rally', 'TOWN_HALL': 'Other', 'OFFICE_OPENING': 'Other', 'BARNSTORM': 'Other',
                   'SOLIDARITY_EVENT': 'Other', 'COMMUNITY_CANVASS': 'Canvass', 'SIGNATURE_GATHERING': 'Canvass',
                   'CARPOOL': 'Canvass', 'WORKSHOP': 'Other', 'PETITION': 'Other', 'AUTOMATED_PHONE_BANK': 'PhoneBank',
                   'LETTER_WRITING': 'Mailing', 'LITERATURE_DROP_OFF': 'Other', 'VISIBILITY_EVENT': 'Other',
