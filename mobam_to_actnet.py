@@ -64,7 +64,7 @@ def get_state(text):
     return 'National'
 
 
-def get_event_data(co_hosts, description, event_owner_email_address, event_type, organization_name, tags, created_at):
+def get_event_data(co_hosts, description, event_owner_email_address, event_type, organization_name, tags, created_at, event_name):
     data = {}
     if organization_name == 'Swing Blue Alliance' and (len(co_hosts) > 0 or len(event_owner_email_address) > 0):
         hosts = co_hosts.split(sep='|') if len(co_hosts) > 0 else []
@@ -80,10 +80,13 @@ def get_event_data(co_hosts, description, event_owner_email_address, event_type,
     elif organization_name == 'Swing Blue Alliance':
         organization_name = 'SBA'
     data['org'] = organization_name[0:20]
-    data['type'] = event_type_map.get(event_type, 'Other')
     data['state'] = get_state(description)
     if data['state'] == 'National':
         data['state'] = get_state(organization_name)
+    if data['state'] == 'NH' and event_name.find('Monthly Meeting') > 0:
+        data['type'] = 'Monthly Meeting'
+    else:
+        data['type'] = event_type_map.get(event_type, 'Other')
     return data
 
 
@@ -107,7 +110,8 @@ def create_event_map(event_path):
                                                               record[iheaders.index('event_type')],
                                                               record[iheaders.index('organization_name')],
                                                               record[iheaders.index('tags')],
-                                                              record[iheaders.index('created_at')][0:10])
+                                                              record[iheaders.index('created_at')][0:10],
+                                                              record[iheaders.index('name')])
     return event_map
 
 
