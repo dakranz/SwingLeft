@@ -36,7 +36,7 @@ def calendar_api_base_url():
 skip_list = {}
 
 inside_orgs = ['swingbluealliance', 'indivisiblegreaterandover', 'indivisiblenorthampton', 'swingleftnorthshore',
-               'jpprogressives', 'swingleftri']
+               'jpprogressives', 'swingleftri', 'sisterdistrictmari', 'somerville2022', 'indivisiblelab']
 
 
 def prefix(path):
