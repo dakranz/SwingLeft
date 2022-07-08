@@ -1,6 +1,9 @@
 # Python 3.6.9 or greater
 
 dropbox
+google-api-python-client
+google-auth-httplib2
+google-auth-oauthlib
 markdown
 python-dateutil
 requests
