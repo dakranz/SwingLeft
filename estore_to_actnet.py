@@ -11,9 +11,9 @@ import action_network
 import google_sheets
 
 _parser = argparse.ArgumentParser()
-_parser.add_argument("-s", "--start", help="Timestamp or datetime for oldest record to process.")
+_parser.add_argument("-s", "--start", help="Oldest record to process.")
 _parser.add_argument("-y", "--dry_run", action="store_true", help="Process but do not upload.")
-_parser.add_argument("-e", "--end", help="Timestamp or datetime for newest record to process.")
+_parser.add_argument("-e", "--end", help="Newest record to process.")
 _parser.add_argument("-t", "--timestamp", action="store_true",
                     help="Use value in estore-action-network-timestamp.txt as oldest event to process, current time "
                          "as newest")
@@ -51,7 +51,7 @@ def get_data(headers, sheet_data):
         address = row[address_index].strip()
         phone = row[phone_index].strip()
         date = row[date_index].strip()
-        if not (name and email and address and phone and date):
+        if not (name and email and date):
             print('Warning: bad row {}'.format(row))
         datum = {}
         datum['date'] = string_to_date_string(date)
@@ -59,14 +59,20 @@ def get_data(headers, sheet_data):
         datum['org'] = 'SBA'
         datum['state'] = 'National'
         datum['type'] = 'Mailing'
-        zipcode = address.split()[-1]
-        if '-' in zipcode:
-            zipcode = zipcode[0:5]
+        if address:
+            zipcode = address.split()[-1]
+            if '-' in zipcode:
+                zipcode = zipcode[0:5]
+        else:
+            zipcode = ''
         datum['zip'] = zipcode
         datum['phone'] = phone
         ln_start = name.rfind(' ')
         datum['ln'] = name[ln_start + 1:]
         datum['fn'] = name[0:ln_start]
+        # This user is ordering for many people with the same email
+        if datum['email'] == 'elizabeth.reingold@gmail.com' and (datum['fn'] != 'Elizabeth' or datum['ln'] != 'Reingold'):
+            continue
         data.append(datum)
     return data
 
@@ -103,10 +109,11 @@ def estore_to_action_network(start_record, end_record, dry_run):
         add_tags = [tag for tag in data['tags']]
         add_tags.append('Misc: SBA Newsletter Subscriber')
         records.append([email, ','.join(add_tags), data['fn'], data['ln'], data['phone'], data['zip']])
-        person_data = {"family_name": data['ln'], "given_name": data['fn'], "email_addresses": [{"address": email}],
-                       "postal_addresses": [{"postal_code": data['zip']}],
-                       "phone_numbers": [{"number": data['phone']}]
-                      }
+        person_data = {"family_name": data['ln'], "given_name": data['fn'], "email_addresses": [{"address": email}]}
+        if data['zip']:
+            person_data["postal_addresses"] = [{"postal_code": data['zip']}]
+        if data['phone']:
+            person_data["phone_numbers"] = [{"number": data['phone']}]
         people_data.append({"person": person_data, "add_tags": add_tags})
     current_date = datetime.datetime.now().strftime("%Y-%m-%d %H;%M;%S")
     out_name = '{}-action-network-upload.csv'.format(current_date)

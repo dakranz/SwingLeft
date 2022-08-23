@@ -123,13 +123,13 @@ def mobilize_america_to_action_network(shift_path, event_path, start, end, dry_r
     with open(shift_path, newline='', encoding='utf-8') as ifile:
         reader = csv.reader(ifile)
         iheaders = next(reader)
-        fn_index = iheaders.index('first name')
-        ln_index = iheaders.index('last name')
-        email_index = iheaders.index('email')
-        zip_index = iheaders.index('zip')
-        phone_index = iheaders.index('phone')
-        eid_index = iheaders.index('event id')
-        start_index = iheaders.index('start')
+        fn_index = iheaders.index('First name')
+        ln_index = iheaders.index('Last name')
+        email_index = iheaders.index('Email')
+        zip_index = iheaders.index('ZIP')
+        phone_index = iheaders.index('Mobile number')
+        eid_index = iheaders.index('Event ID')
+        start_index = iheaders.index('Timeslot start')
 
         # Record participants
         for record in reader:
