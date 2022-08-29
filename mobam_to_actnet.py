@@ -59,7 +59,7 @@ states = {"FL": ["FL", "Florida"],
 def get_state(text):
     for tag, strings in states.items():
         pattern = '.*\\W{}\\W.*'.format(strings[0])
-        if re.match(pattern, text) or strings[1] in text:
+        if re.search(pattern, text) or strings[1] in text:
             return tag
     return 'National'
 
