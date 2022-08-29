@@ -299,7 +299,7 @@ def process_slack_messages(messages):
             organizers = events.get_calendar_metadata('organizers')['organizers']
         organizer = infer_organizer(organizers, organizer, title, description)
         news_magic_link = '<a target=_blank href=http://news-magic.org/>News-MAGIC.org</a>'
-        description += '\n\nFrom the Massachusetts Grassroots Information Center at {}'.format(news_magic_link)
+        description += '\n\nFrom the Massachusetts Grassroots Information Collaborative at {}'.format(news_magic_link)
         logger.info(title)
         if len(date_lines) == 0:
             logger.warning("No date found: ts=%s", ts)
