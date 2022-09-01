@@ -83,7 +83,7 @@ def get_event_data(co_hosts, description, event_owner_email_address, event_type,
     data['state'] = get_state(description)
     if data['state'] == 'National':
         data['state'] = get_state(organization_name)
-    if data['state'] == 'NH' and event_name.find('Monthly Meeting') > 0:
+    if data['state'] == 'NH' and event_name.find('Monthly Meeting') >= 0:
         data['type'] = 'Monthly Meeting'
     else:
         data['type'] = event_type_map.get(event_type, 'Other')
