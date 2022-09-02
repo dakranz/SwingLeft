@@ -223,6 +223,9 @@ def process_slack_messages(messages):
         if 'mobilize.us/swingbluealliance' in description:
             logger.info('Ignoring message with swing blue alliance mobilize event')
             continue
+        if 'mobilize.us/news-magic' in description:
+            logger.info('Ignoring message with news-magic mobilize event')
+            continue
         website = ''
         mobilize_urls = events.get_mobilize_urls(description)
         if len(mobilize_urls) >= 1:

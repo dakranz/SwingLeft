@@ -53,6 +53,7 @@ def get_data(headers, sheet_data):
         date = row[date_index].strip()
         if not (name and email and date):
             print('Warning: bad row {}'.format(row))
+            continue
         datum = {}
         datum['date'] = string_to_date_string(date)
         datum['email'] = email

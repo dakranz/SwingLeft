@@ -40,8 +40,8 @@ def get_event_organizer(event):
 
 def get_event_url(event):
     event_url = event['browser_url']
-    if 'news-magic' in the_events_calendar.calendar_name:
-        return event_url.replace('swingbluealliance', event['sponsor']['slug'])
+    # if 'news-magic' in the_events_calendar.calendar_name:
+    #     return event_url.replace('swingbluealliance', event['sponsor']['slug'])
     return event_url
 
 
@@ -84,12 +84,6 @@ def mobilize_to_calendar(event, force):
         tag, is_target_state = the_events_calendar.infer_state_tags(event_organizer)
     if tag is not None:
         tags = [tag]
-    # For the grassroots news-magic calendar we only post Swing Blue Alliance events. For the Swing Blue Alliance
-    # calendar we also post promoted events that are locally hosted and part of a target state campaign.
-    if sponsor not in events.inside_orgs:
-        # if not force and ('news-magic' in the_events_calendar.calendar_name or not is_target_state):
-        if not force and ('news-magic' in the_events_calendar.calendar_name):
-            return None
     if 'event_type' not in event or the_events_calendar.lookup_mobilize_event_type(event['event_type']) is None:
         the_events_calendar.add_activity_categories(categories, text, event['title'])
     else:
@@ -114,6 +108,9 @@ def mobilize_to_calendar(event, force):
     #         return None
     event_records = []
     for time_slot in time_slots:
+        # Exclude "anytime events"
+        if time_slot['end_date'] - time_slot['start_date'] > 23 * 3600:
+            continue
         start = datetime.datetime.fromtimestamp(time_slot['start_date'])
         end = datetime.datetime.fromtimestamp(time_slot['end_date'])
         event_start_date = start.strftime("%Y-%m-%d")

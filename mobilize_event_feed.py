@@ -27,49 +27,12 @@ parser.add_argument("--update_timestamp", action="store_true",
                     help="Update mobilize-timestamp.txt to current time.")
 args = parser.parse_args()
 
-entry_point = 'https://api.mobilize.us/v1/'
-api_header = {'Content-Type': 'application/json', 'Authorization': 'Bearer ' + api_key.mobilize_key}
-
 
 skip_list = []
 
 
-def get_mobilize_event(url):
-    event_id = events.get_event_id(url)
-    url = entry_point + 'events/' + event_id
-    r = requests.get(url, headers=api_header)
-    assert r.ok, r.text
-    event = r.json()['data']
-    browser_url = event['browser_url']
-    return event
-
-
-def get_mobilize_events(since):
-    event_list = []
-    if since is None:
-        update = ''
-    else:
-        update = '&updated_since={}'.format(since)
-    #visibility = '&visibility=PRIVATE&visibility=PUBLIC'
-    visibility = ''
-    url = '{}organizations/1535/events?per_page=100{}&timeslot_start=gt_now{}'.format(entry_point, update, visibility)
-    while True:
-        r = requests.get(url, headers=api_header)
-        assert r.ok, r.text
-        j_data = r.json()
-        for event in j_data['data']:
-            browser_url = event['browser_url']
-            if browser_url is not None:
-                event_list.append(event)
-        next_url = j_data['next']
-        if next_url is None:
-            break
-        url = next_url
-    return event_list
-
-
 def mobilize_event_feed(start):
-    return process_event_feed(get_mobilize_events(start))
+    return process_event_feed(events.get_mobilize_events(start))
 
 
 def process_event_feed(event_list, force=False):
@@ -114,7 +77,7 @@ def main():
                 print('No timestamp file')
                 exit(1)
     elif args.url:
-        process_event_feed([get_mobilize_event(url) for url in args.url], force=True)
+        process_event_feed([events.get_mobilize_event(url) for url in args.url], force=True)
         return
     if update_timestamp:
         try:

@@ -1,4 +1,6 @@
+import datetime
 import sys
+import time
 
 import events
 import the_events_calendar
@@ -37,9 +39,36 @@ def find_duplicate_calendar_events():
         print('\n')
 
 
+def time_slot_string(event_id, start):
+    return '{}#{}'.format(event_id, start)
+
+
+def find_orphaned_calendar_events(org):
+    now = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    calendar_events = events.get_calendar_events()
+    mobilize_events = events.get_all_mobilize_events()
+    all_slots = set()
+    for event in mobilize_events:
+        for slot in event['timeslots']:
+            start = datetime.datetime.fromtimestamp(slot['start_date']).strftime('%Y-%m-%d %H:%M:%S')
+            all_slots.add(time_slot_string(event['id'], start))
+    for event in calendar_events:
+        if event['start_date'] <= now or 'mobilize.us/' + org not in event['website']:
+            continue
+        if time_slot_string(events.get_event_id(event['website']), event['start_date']) not in all_slots:
+            print(event['url'])
+            #events.delete_calendar_event(event['id'])
+            time.sleep(1)
+
+
 def main():
     the_events_calendar.set_global_calendar(sys.argv[1])
+    if the_events_calendar.calendar_name == 'sba':
+        org = 'swingbluealliance'
+    else:
+        org = 'news-magic'
     find_duplicate_calendar_events()
+    #find_orphaned_calendar_events(org)
 
 
 main()

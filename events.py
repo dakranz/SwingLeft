@@ -38,21 +38,64 @@ skip_list = {}
 inside_orgs = ['swingbluealliance', 'indivisiblegreaterandover', 'indivisiblenorthampton', 'swingleftnorthshore',
                'jpprogressives', 'swingleftri', 'sisterdistrictmari', 'somerville2022', 'indivisiblelab']
 
+#api_header = {'Content-Type': 'application/json', 'Authorization': 'Bearer ' + api_key.mobilize_key}
+api_header = {'Content-Type': 'application/json'}
+
 
 def prefix(path):
     return the_events_calendar.calendar_name + '-' + path
 
 
-def get_mobilize_events():
+def mobilize_org():
+    name = the_events_calendar.calendar_name
+    assert name == 'sba' or name == 'news-magic'
+    if name == 'sba':
+        return '1535'
+    return '33342'
+
+
+def get_mobilize_event(url):
+    event_id = get_event_id(url)
+    url = 'https://api.mobilize.us/v1/events/' + event_id
+    r = requests.get(url, headers=api_header)
+    assert r.ok, r.text
+    event = r.json()['data']
+    browser_url = event['browser_url']
+    return event
+
+
+def get_mobilize_events(since):
+    event_list = []
+    if since is None:
+        update = ''
+    else:
+        update = '&updated_since={}'.format(since)
+    url = 'https://api.mobilize.us/v1/organizations/{}/events?per_page=100{}&timeslot_start=gt_now'.format(
+                                                                                    mobilize_org(),
+                                                                                    update)
+    while True:
+        r = requests.get(url, headers=api_header)
+        assert r.ok, r.text
+        j_data = r.json()
+        for event in j_data['data']:
+            browser_url = event['browser_url']
+            if browser_url is not None:
+                event_list.append(event)
+        next_url = j_data['next']
+        if next_url is None:
+            break
+        url = next_url
+    return event_list
+
+
+def get_all_mobilize_events():
     if use_saved_data:
         return load_mobilize_events()
     events = []
-    #url = 'https://api.mobilize.us/v1/organizations/1535/events?per_page=100&timeslot_start=gt_now&visibility=PRIVATE&visibility=PUBLIC'
-    url = 'https://api.mobilize.us/v1/organizations/1535/events?per_page=100&timeslot_start=gt_now'
-    headers = {'Content-Type': 'application/json', 'Authorization': 'Bearer ' + api_key.mobilize_key}
+    url = 'https://api.mobilize.us/v1/organizations/' + mobilize_org() + '/events?per_page=100&timeslot_start=gt_now'
     while True:
         logger.info(url)
-        r = requests.get(url, headers=headers)
+        r = requests.get(url, headers=api_header)
         assert r.ok, r.text
         j_data = r.json()
         for event in j_data['data']:
@@ -86,6 +129,13 @@ def get_calendar_events():
             break
         url = j_data['next_rest_url']
     return events
+
+
+def delete_calendar_event(event_id):
+    url = '{}events/{}'.format(calendar_api_base_url(), event_id)
+    logger.info("Deleting: " + url)
+    r = requests.delete(url, headers=the_events_calendar.auth_header())
+    assert r.ok, r.text
 
 
 calendar_metadata_names = {'categories': '?per_page=50&status=publish&hide_empty=0',
@@ -136,9 +186,9 @@ def load_calendar_metadata():
 
 
 def dump_events():
-    m_events = get_mobilize_events()
+    m_events = get_all_mobilize_events()
     c_events = get_calendar_events()
-    with open('mobilize-events.json', 'w', encoding='utf-8') as f:
+    with open(prefix('mobilize-events.json'), 'w', encoding='utf-8') as f:
         json.dump(m_events, f, ensure_ascii=False, indent=4)
     with open(prefix('calendar-events.json'), 'w', encoding='utf-8') as f:
         json.dump(c_events, f, ensure_ascii=False, indent=4)
@@ -150,7 +200,7 @@ def load_calendar_events():
 
 
 def load_mobilize_events():
-    with open('mobilize-events.json', encoding='utf-8') as f:
+    with open(prefix('mobilize-events.json'), encoding='utf-8') as f:
         return json.load(f)
 
 
