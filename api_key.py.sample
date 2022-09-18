@@ -1,4 +1,5 @@
 action_network_key = '<key>'
+mobilize_key = '<key'
 slack_news_magic_key = '<key>'
 slack_news_magic_team_id = '<workspace id>'
 slack_slgb_key = '<workspace to send job notifications>'
@@ -6,3 +7,11 @@ slack_user_key = '<admin user token to invite the bot to channels>'
 slack_bot_id = '<id of the bot>'
 dropbox_key = '<dropbox api key for uploading job logs>'
 google_sheets_key = '<google api to access google sheets>'
+
+mobilize_keys = {#org1
+                 "<org_id>": "<org_key>",
+                 #org2
+                 "<org_id>": "<org_key>"
+}
+
+

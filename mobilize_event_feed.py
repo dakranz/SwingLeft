@@ -19,6 +19,8 @@ parser.add_argument("-c", "--calendar", required=True,
                     help="Name of the calendar being updated.")
 parser.add_argument("--url", nargs="+",
                     help="List of mobilize urls to process.")
+parser.add_argument("--file", nargs=1,
+                    help="File containing a list of mobilize urls to process.")
 parser.add_argument("-t", "--timestamp", action="store_true",
                     help="Use value in mobilize-timestamp.txt as oldest event to process")
 parser.add_argument("-d", "--debug", action="store_true",
@@ -58,7 +60,7 @@ def process_event_feed(event_list, force=False):
 
 
 def main():
-    if len([x for x in [args.hours, args.timestamp, args.url, args.all] if x]) != 1:
+    if len([x for x in [args.hours, args.timestamp, args.url, args.file, args.all] if x]) != 1:
         print('Must specify exactly one of -t or --hours or --url or --all')
         exit(1)
     now = int(datetime.datetime.now().timestamp())
@@ -78,6 +80,11 @@ def main():
                 exit(1)
     elif args.url:
         process_event_feed([events.get_mobilize_event(url) for url in args.url], force=True)
+        return
+    elif args.file:
+        with open(args.file[0]) as ifile:
+            urls = [u.strip() for u in ifile.readlines() if 'mobilize.us' in u]
+            process_event_feed([events.get_mobilize_event(url) for url in urls if url], force=True)
         return
     if update_timestamp:
         try:
