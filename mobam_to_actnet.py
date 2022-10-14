@@ -130,6 +130,8 @@ def mobilize_america_to_action_network(shift_path, event_path, start, end, dry_r
         phone_index = iheaders.index('Mobile number')
         eid_index = iheaders.index('Event ID')
         start_index = iheaders.index('Timeslot start')
+        status_index = iheaders.index('Attendance status')
+        org_index = iheaders.index('Event organization name')
 
         # Record participants
         for record in reader:
@@ -137,6 +139,8 @@ def mobilize_america_to_action_network(shift_path, event_path, start, end, dry_r
             if record_start < start or record_start >= end:
                 continue
             if record[eid_index] not in event_map:
+                continue
+            if 'CANCELLED' in record[status_index] or record[org_index] != 'Swing Blue Alliance':
                 continue
             new_tag = create_action_network_tag(event_map[record[eid_index]], record_start, 'Participant')
             tags.add(new_tag)
