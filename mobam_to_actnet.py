@@ -53,6 +53,7 @@ states = {"FL": ["FL", "Florida"],
           "NH": ["NH", "New Hampshire"],
           "NC": ["NC", "North Carolina"],
           "PA": ["PA", "Pennsylvania"],
+          "WI": ["WI", "Wisconsin"],
           }
 
 
