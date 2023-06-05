@@ -80,6 +80,9 @@ states = {"florida": ["FL", "Florida"],
           "north-carolina": ["NC", "North Carolina"],
           "pennsylvania": ["PA", "Pennsylvania"],
           "wisconsin": ["WI", "Wisconsin"],
+          "new-york": ["NY", "New York"],
+          "virginia": ["VA", "Virginia"],
+          "ohio": ["OH", "Ohio"],
           }
 
 
