@@ -2,6 +2,7 @@ import argparse
 import csv
 import datetime
 from dateutil import parser
+import logging
 import re
 from pprint import pprint
 import shutil
@@ -17,7 +18,17 @@ _parser.add_argument("-e", "--end", help="Newest record to process.")
 _parser.add_argument("-t", "--timestamp", action="store_true",
                     help="Use value in estore-action-network-timestamp.txt as oldest event to process, current time "
                          "as newest")
+_parser.add_argument("-d", "--debug", action="store_true",
+                     help="Log debug info.")
+
+
 args = _parser.parse_args()
+
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG if args.debug else logging.INFO)
+sh = logging.StreamHandler()
+sh.setFormatter(logging.Formatter('%(levelname)s - %(message)s'))
+logger.addHandler(sh)
 
 
 def get_recency(date):
@@ -52,7 +63,7 @@ def get_data(headers, sheet_data):
         phone = row[phone_index].strip()
         date = row[date_index].strip()
         if not (name and email and date):
-            print('Warning: bad row {}'.format(row))
+            logger.warning('Warning: bad row %s', row)
             continue
         datum = {}
         datum['date'] = string_to_date_string(date)
@@ -118,11 +129,10 @@ def estore_to_action_network(start_record, end_record, dry_run):
         people_data.append({"person": person_data, "add_tags": add_tags})
     current_date = datetime.datetime.now().strftime("%Y-%m-%d %H;%M;%S")
     out_name = '{}-action-network-upload.csv'.format(current_date)
-    with open(out_name, mode='w', newline='', encoding='utf-8') as ofile:
+    with open('estore-action-network-upload.csv', mode='w', newline='', encoding='utf-8') as ofile:
         writer = csv.writer(ofile)
         writer.writerow(['Email', 'Tags', 'First Name', 'Last Name', 'Phone', 'Zipcode'])
         writer.writerows(records)
-    print(out_name)
     new_tags = tags.difference(set(action_network.get_tags()))
 
     # people_data = people_data[0:10]
@@ -131,13 +141,15 @@ def estore_to_action_network(start_record, end_record, dry_run):
     #     for tag in person['add_tags']:
     #         new_tags.add(tag)
     #
+    if not dry_run:
+        logger.info('Writing live data to Action Network')
     for tag_name in new_tags:
-        print(tag_name)
+        logger.info(tag_name)
         if not dry_run:
             action_network.add_tag(tag_name)
             time.sleep(.2)
     for person in people_data:
-        print(person['person']['email_addresses'][0]['address'])
+        logger.info(person['person']['email_addresses'][0]['address'])
         if not dry_run:
             action_network.add_person(person)
             time.sleep(.2)
@@ -154,7 +166,7 @@ def string_to_date_string(s):
 
 def main():
     if not (args.timestamp or args.start and args.end):
-        print('Must specify -t or --start and --end')
+        logger.error('Must specify -t or --start and --end')
         exit(1)
     if args.timestamp:
         with open('estore-to-action-network-recordstamp.txt') as f:
@@ -162,11 +174,12 @@ def main():
                 start = int(f.read().strip()) + 1
                 end = ""
             except FileNotFoundError:
-                print('No recordstamp file')
+                logger.error('No recordstamp file')
                 exit(1)
     else:
         start = int(args.start)
         end = int(args.end)
+    logger.info("Start record: %s", start)
     last_record = estore_to_action_network(start, end, args.dry_run) + start - 1
     if args.dry_run:
         return

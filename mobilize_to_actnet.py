@@ -2,6 +2,7 @@ import argparse
 import csv
 import datetime
 from dateutil import parser
+import logging
 import re
 import requests
 import shutil
@@ -9,7 +10,6 @@ import time
 
 import action_network
 import api_key
-from pprint import pprint
 
 sba_mobilize_org = '1535'
 entry_point = 'https://api.mobilize.us/v1/organizations/' + sba_mobilize_org + '/events'
@@ -20,12 +20,21 @@ _parser.add_argument("-s", "--start", help="Oldest day to process as Year-Month-
 _parser.add_argument("-y", "--dry_run", action="store_true", help="Process but do not upload.")
 _parser.add_argument("-e", "--end", help="Newest day to process as Year-Month-Day at midnight.")
 _parser.add_argument("-t", "--timestamp", action="store_true",
-                    help="Use value in mobilize-action-network-timestamp.txt as oldest day to process, yesterday"
-                         "as newest")
+                     help="Use value in mobilize-action-network-timestamp.txt as oldest day to process, yesterday"
+                          "as newest")
 _parser.add_argument("--update_timestamp", action="store_true",
                      help="Update mobilize-timestamp.txt to current time.")
+_parser.add_argument("-d", "--debug", action="store_true",
+                     help="Log debug info.")
+
 
 args = _parser.parse_args()
+
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG if args.debug else logging.INFO)
+sh = logging.StreamHandler()
+sh.setFormatter(logging.Formatter('%(levelname)s - %(message)s'))
+logger.addHandler(sh)
 
 
 def get_mobilize_contact(event):
@@ -146,7 +155,7 @@ def create_action_network_tag(event_data, start, role):
 
 
 event_headers = ['description', 'event_owner_email_address', 'event_type', 'organization_name', 'tags',
-                 'modified_at', 'name']
+                 'start', 'url', 'name']
 
 attendee_headers = ['First name', 'Last name', 'Email', 'ZIP', 'Mobile number', 'Event ID', 'Timeslot start',
                     'Attendance status', 'Event organization name']
@@ -166,7 +175,7 @@ def mobilize_america_to_action_network(start, end, dry_run):
                 event_records.append([event['description'], data['hosts'][0] if 'hosts' in data else '',
                                       event['event_type'], event['sponsor']['name'],
                                       '|'.join([tag['name'] for tag in event['tags']]),
-                                      timestamp_to_date_time(timeslot_start), event['title']])
+                                      timestamp_to_date_time(timeslot_start), event['browser_url'], event['title']])
         for record in get_mobilize_attendances(event['id']):
             # Record participants
             record_start = record['timeslot']['start_date']
@@ -220,7 +229,7 @@ def mobilize_america_to_action_network(start, end, dry_run):
             records.append([email, ','.join(add_tags), data['fn'], data['ln'], data['phone'], data['zip']])
             person_data = {"email_addresses": [{"address": email}]}
             if not all([data['fn'], data['ln'], data['zip'], data['phone']]):
-                print(email, data)
+                logger.info('%s %s', email, data)
             if data['ln']:
                 person_data["family_name"] = data['ln']
             if data['fn']:
@@ -230,21 +239,18 @@ def mobilize_america_to_action_network(start, end, dry_run):
             if data['phone']:
                 person_data["phone_numbers"] = [{"number": data['phone']}]
         people_data.append({"person": person_data, "add_tags": add_tags})
-    current_date = datetime.datetime.now().strftime("%Y-%m-%d %H;%M;%S")
-    out_name = '{}-action-network-upload.csv'.format(current_date)
-    with open('{}.mobilize-event-export.csv'.format(current_date), mode='w', newline='', encoding='utf-8') as ofile:
+    with open('mobilize-event-export.csv', mode='w', newline='', encoding='utf-8') as ofile:
         writer = csv.writer(ofile)
         writer.writerow(event_headers)
         writer.writerows(event_records)
-    with open('{}.mobilize-shift-export.csv'.format(current_date), mode='w', newline='', encoding='utf-8') as ofile:
+    with open('mobilize-shift-export.csv', mode='w', newline='', encoding='utf-8') as ofile:
         writer = csv.writer(ofile)
         writer.writerow(attendee_headers)
         writer.writerows(attendee_records)
-    with open(out_name, mode='w', newline='', encoding='utf-8') as ofile:
+    with open('mobilize-action-network-upload.csv', mode='w', newline='', encoding='utf-8') as ofile:
         writer = csv.writer(ofile)
         writer.writerow(['Email', 'Tags', 'First Name', 'Last Name', 'Phone', 'Zipcode'])
         writer.writerows(records)
-    print(out_name)
     new_tags = tags.difference(set(action_network.get_tags()))
 
     # people_data = people_data[0:10]
@@ -253,13 +259,15 @@ def mobilize_america_to_action_network(start, end, dry_run):
     #     for tag in person['add_tags']:
     #         new_tags.add(tag)
     #
+    if not dry_run:
+        logger.info('Writing live data to Action Network')
     for tag_name in new_tags:
-        print(tag_name)
+        logger.info(tag_name)
         if not dry_run:
             action_network.add_tag(tag_name)
             time.sleep(.2)
     for person in people_data:
-        print(person['person']['email_addresses'][0]['address'])
+        logger.info(person['person']['email_addresses'][0]['address'])
         if not dry_run:
             action_network.add_person(person)
             time.sleep(.2)
@@ -273,9 +281,13 @@ def timestamp_to_date_time(timestamp):
     return datetime.datetime.fromtimestamp(float(timestamp)).strftime("%Y-%m-%d %H:%M:%S")
 
 
+def timestamp_to_date(timestamp):
+    return datetime.datetime.fromtimestamp(float(timestamp)).strftime("%Y-%m-%d")
+
+
 def main():
     if not (args.timestamp or args.start and args.end):
-        print('Must specify -t or --start and --end')
+        logger.error('Must specify -t or --start and --end')
         exit(1)
     today = datetime.datetime.now().strftime("%Y-%m-%d")
     if args.timestamp:
@@ -284,11 +296,12 @@ def main():
                 start = date_to_timestamp(f.read().strip())
                 end = date_to_timestamp(today)
             except FileNotFoundError:
-                print('No timestamp file')
+                logger.error('No timestamp file')
                 exit(1)
     else:
         start = date_to_timestamp(args.start)
         end = date_to_timestamp(args.end)
+    logger.info("Start: %s End: %s", timestamp_to_date(start), timestamp_to_date(end))
     mobilize_america_to_action_network(start, end, args.dry_run)
     if args.dry_run:
         return
