@@ -47,6 +47,9 @@ def get_event_url(event):
 
 def mobilize_to_calendar(event, force):
     event_url = get_event_url(event)
+    if event_url[len(event_url) - 1] == '/':
+        event_url = event_url[0:len(event_url) - 1]
+    event_url += '?utm_source=sba_cal'
     event_organizer = get_event_organizer(event)
     # Mobilize uses markdown. There are many variants but we hope this markdown package will do no harm.
     # https://github.com/Python-Markdown/markdown
