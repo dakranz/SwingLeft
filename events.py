@@ -64,6 +64,31 @@ def get_mobilize_event(url):
     return event
 
 
+def new_get_mobilize_events(since):
+    event_list = []
+    calendar = get_event_map()
+    url = 'https://api.mobilize.us/v1/organizations/{}/events?per_page=100&timeslot_start=gt_now'.format(
+                                                                                    mobilize_org())
+    while True:
+        r = requests.get(url, headers=api_header)
+        assert r.ok, r.text
+        j_data = r.json()
+        for event in j_data['data']:
+            browser_url = event['browser_url']
+            if browser_url is None:
+                pass
+            elif since is None or event['modified_date'] >= since:
+                event_list.append(event)
+            elif get_event_id(browser_url) not in calendar:
+                logger.info('Adding promoted: ' + browser_url)
+                event_list.append(event)
+        next_url = j_data['next']
+        if next_url is None:
+            break
+        url = next_url
+    return event_list
+
+
 def get_mobilize_events(since):
     event_list = []
     if since is None:
@@ -205,6 +230,9 @@ def load_mobilize_events():
 
 
 def get_event_id(url):
+    q = url.find('?')
+    if q >= 0:
+        url = url[0:q]
     data = url.split(sep='/')
     if data[-1] == '':
         return data[-2]

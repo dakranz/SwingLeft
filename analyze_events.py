@@ -15,6 +15,9 @@ skip_list = {'news-magic': [],
 def canonicalize_url(url):
     if 'mobilize.us/' not in url:
         return url
+    q = url.find('?')
+    if q >= 0:
+        url = url[0:q]
     parts = url.split(sep='/')
     mobilize_id = parts[-2] if url[-1] == '/' else parts[-1]
     return 'https://www.mobilize.us/swingbluealliance/event/{}/'.format(mobilize_id)
