@@ -80,11 +80,11 @@ def mobilize_to_calendar(event, force):
         region = regions.get_ma_region_by_zip(zip_code)
     text = event['title'] + ' ' + event['description']
     tags = []
-    tag, is_target_state = the_events_calendar.get_mobilize_state_tags(event['tags'])
+    tag = the_events_calendar.get_mobilize_state_tags(event['tags'])
     if tag is None:
-        tag, is_target_state = the_events_calendar.infer_state_tags(text)
+        tag = the_events_calendar.infer_state_tags(text)
     if tag is None:
-        tag, is_target_state = the_events_calendar.infer_state_tags(event_organizer)
+        tag = the_events_calendar.infer_state_tags(event_organizer)
     if tag is not None:
         tags = [tag]
     if 'event_type' not in event or the_events_calendar.lookup_mobilize_event_type(event['event_type']) is None:

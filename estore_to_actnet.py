@@ -45,8 +45,8 @@ def get_recency(date):
 
 
 def create_action_network_tag(event_data, start, role):
-    # Add | at begin and end
-    return '|'.join(['', event_data['org'], role, event_data['type'], event_data['state'], get_recency(start), ''])
+    # Add _ at begin and end
+    return '_'.join(['', event_data['org'], role, event_data['type'], event_data['state'], get_recency(start), ''])
 
 
 def get_data(headers, sheet_data):

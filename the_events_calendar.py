@@ -83,6 +83,9 @@ states = {"florida": ["FL", "Florida"],
           "new-york": ["NY", "New York"],
           "virginia": ["VA", "Virginia"],
           "ohio": ["OH", "Ohio"],
+          "michigan": ["MI", "Michigan"],
+          "arizona": ["AZ", "Arizona"],
+          "nevada": ["NV", "Nevada"],
           }
 
 
@@ -94,18 +97,18 @@ def get_mobilize_state_tags(tags_list):
     tags = set([tag['name'] for tag in tags_list])
     for tag, strings in states.items():
         if strings[1] in tags:
-            return tag, True
+            return tag
     if 'Democracy-national' in tags:
-        return 'national' if 'news-magic' not in calendar_name else 'democracy-reform', False
-    return None, False
+        return 'national'
+    return None
 
 
 def infer_state_tags(text):
     for tag, strings in states.items():
-        pattern = '.*\\W{}\\W.*'.format(strings[0])
+        pattern = '.*\\W{}\\d*\\W.*'.format(strings[0])
         if re.search(pattern, text) or strings[1] in text:
-            return tag, True
-    return None, False
+            return tag
+    return None
 
 
 def find_activity_category(text):

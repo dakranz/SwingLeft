@@ -10,15 +10,16 @@ import time
 
 import action_network
 import api_key
+import the_events_calendar
 
 sba_mobilize_org = '1535'
 entry_point = 'https://api.mobilize.us/v1/organizations/' + sba_mobilize_org + '/events'
 api_header = {'Content-Type': 'application/json', 'Authorization': 'Bearer ' + api_key.mobilize_key}
 
 _parser = argparse.ArgumentParser()
-_parser.add_argument("-s", "--start", help="Oldest day to process as Year-Month-Day at midnight")
+_parser.add_argument("-s", "--start", help="Oldest day (inclusive) to process as Year-Month-Day at midnight")
 _parser.add_argument("-y", "--dry_run", action="store_true", help="Process but do not upload.")
-_parser.add_argument("-e", "--end", help="Newest day to process as Year-Month-Day at midnight.")
+_parser.add_argument("-e", "--end", help="Newest day (exclusive) to process as Year-Month-Day at midnight.")
 _parser.add_argument("-t", "--timestamp", action="store_true",
                      help="Use value in mobilize-action-network-timestamp.txt as oldest day to process, yesterday"
                           "as newest")
@@ -102,25 +103,6 @@ event_type_map = {'CANVASS': 'Canvass', 'PHONE_BANK': 'PhoneBank', 'TEXT_BANK': 
                   'LETTER_WRITING': 'Mailing', 'LITERATURE_DROP_OFF': 'Other', 'VISIBILITY_EVENT': 'Other',
                   'SOCIAL_MEDIA_CAMPAIGN': 'Other', 'POSTCARD_WRITING': 'Mailing', 'OTHER': 'Other'}
 
-states = {"FL": ["FL", "Florida"],
-          "GA": ["GA", "Georgia"],
-          "NH": ["NH", "New Hampshire"],
-          "NC": ["NC", "North Carolina"],
-          "PA": ["PA", "Pennsylvania"],
-          "WI": ["WI", "Wisconsin"],
-          "NY": ["NY", "New York"],
-          "VA": ["VA", "Virginia"],
-          "OH": ["OH", "Ohio"],
-          }
-
-
-def get_state(text):
-    for tag, strings in states.items():
-        pattern = '.*\\W{}\\W.*'.format(strings[0])
-        if re.search(pattern, text) or strings[1] in text:
-            return tag
-    return 'National'
-
 
 def get_event_data(event):
     data = {}
@@ -138,9 +120,15 @@ def get_event_data(event):
     elif organization_name == 'Swing Blue Alliance':
         organization_name = 'SBA'
     data['org'] = organization_name[0:20]
-    data['state'] = get_state(event['description'])
-    if data['state'] == 'National':
-        data['state'] = get_state(organization_name)
+    state = the_events_calendar.get_mobilize_state_tags(event['tags'])
+    if state is None:
+        state = the_events_calendar.infer_state_tags(event['description'])
+    if state is None:
+        state = the_events_calendar.infer_state_tags(organization_name)
+    if state is None or state == 'national':
+        data['state'] = 'National'
+    else:
+        data['state'] = the_events_calendar.states[state][0]
     if data['state'] == 'NH' and (event['title'].lower().find('monthly meeting') >= 0 or
                                   event['description'].lower().find('monthly meeting') >= 0):
         data['type'] = 'Monthly Meeting'
@@ -150,8 +138,8 @@ def get_event_data(event):
 
 
 def create_action_network_tag(event_data, start, role):
-    # Add | at begin and end
-    return '|'.join(['', event_data['org'], role, event_data['type'], event_data['state'], get_recency(start), ''])
+    # Add _ at begin and end
+    return '_'.join(['', event_data['org'], role, event_data['type'], event_data['state'], get_recency(start), ''])
 
 
 event_headers = ['description', 'event_owner_email_address', 'event_type', 'organization_name', 'tags',
@@ -174,7 +162,7 @@ def mobilize_america_to_action_network(start, end, dry_run):
             if start <= timeslot_start < end:
                 event_records.append([event['description'], data['hosts'][0] if 'hosts' in data else '',
                                       event['event_type'], event['sponsor']['name'],
-                                      '|'.join([tag['name'] for tag in event['tags']]),
+                                      '_'.join([tag['name'] for tag in event['tags']]),
                                       timestamp_to_date_time(timeslot_start), event['browser_url'], event['title']])
         for record in get_mobilize_attendances(event['id']):
             # Record participants
@@ -192,6 +180,15 @@ def mobilize_america_to_action_network(start, end, dry_run):
             people_entry = people.get(email, None)
             if people_entry is not None:
                 people_entry['tags'].add(new_tag)
+                if 'fn' not in people_entry:
+                    # First instance of this person was from host record that only contains email
+                    people_entry['fn'] = person['given_name']
+                    people_entry['ln'] = person['family_name']
+                    zip_code = person['postal_addresses'][0]['postal_code']
+                    if zip_code and len(zip_code) == 4:
+                        zip_code = '0' + zip_code
+                    people_entry['zip'] = zip_code
+                    people_entry['phone'] = person['phone_numbers'][0]['number']
             else:
                 zip_code = person['postal_addresses'][0]['postal_code']
                 if zip_code and len(zip_code) == 4:
