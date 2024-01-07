@@ -10,7 +10,7 @@ def api_header():
 
 def add_person(data):
     url = entry_point + 'people?background_request=true'
-    r = requests.post(url, json=data, headers=api_header)
+    r = requests.post(url, json=data, headers=api_header())
     assert r.status_code == 200, r.text
     return r.json()
 
