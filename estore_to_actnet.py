@@ -60,7 +60,11 @@ def get_data(headers, sheet_data):
         name = row[name_index].strip()
         email = row[email_index].strip()
         address = row[address_index].strip()
-        phone = row[phone_index].strip()
+        # Google sheets leaves off a blank entry at the end of a range. Phone is the last item and is optional.
+        if phone_index < len(row):
+            phone = row[phone_index].strip()
+        else:
+            phone = ''
         date = row[date_index].strip()
         if not (name and email and date):
             logger.warning('Warning: bad row %s', row)
