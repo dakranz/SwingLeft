@@ -267,7 +267,7 @@ def mobilize_america_to_action_network(start, end, dry_run):
         logger.info(person['person']['email_addresses'][0]['address'])
         if not dry_run:
             action_network.add_person(person)
-            time.sleep(.2)
+            time.sleep(.5)
 
 
 def date_to_timestamp(s):
