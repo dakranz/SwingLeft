@@ -176,7 +176,10 @@ def update_calendar(path):
                          'end_date': end_date,
                          'website': website
                          }
-            # Not doing regions at the moment
+            if (event[headers.index('Event Category')] == 'phone-banking' and
+                    organizer_organizer in ['All in for NC', 'Swing Blue Alliance']):
+                post_data['image'] = "https://swingbluealliance.org/wp-content/uploads/2024/01/Rocking-Donkey.jpg"
+                # Not doing regions at the moment
             # if region:
             #     post_data[custom_field_map['region']] = region
             # There is a bug in The Events Calendar where tags and categories are documented to accept an array,

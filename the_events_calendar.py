@@ -55,7 +55,7 @@ activities = {"canvassing": ["canvas"],
               "fundraisers": ["fundrai"],
               "training": ["training"],
               "rallies": ["rally", "rallies", "standout"],
-              "activism-huddle": ["activism huddle"]
+              "activism-huddle": ["activist huddle", "activist afternoon"]
               }
 
 mobilize_event_type_map = {'CANVASS': 'canvassing', 'PHONE_BANK': 'phone-banking', 'TEXT_BANK': 'texting',

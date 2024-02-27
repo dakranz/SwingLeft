@@ -46,12 +46,10 @@ def prefix(path):
     return the_events_calendar.calendar_name + '-' + path
 
 
-def mobilize_org():
-    name = the_events_calendar.calendar_name
-    assert name == 'sba' or name == 'news-magic'
-    if name == 'sba':
-        return '1535'
-    return '33342'
+def mobilize_orgs():
+    # swingbluealliance, activistafternoons
+    return ['1535', '33342']
+    # return ['33342']
 
 
 def get_mobilize_event(url):
@@ -64,52 +62,28 @@ def get_mobilize_event(url):
     return event
 
 
-def new_get_mobilize_events(since):
-    event_list = []
-    calendar = get_event_map()
-    url = 'https://api.mobilize.us/v1/organizations/{}/events?per_page=100&timeslot_start=gt_now'.format(
-                                                                                    mobilize_org())
-    while True:
-        r = requests.get(url, headers=api_header)
-        assert r.ok, r.text
-        j_data = r.json()
-        for event in j_data['data']:
-            browser_url = event['browser_url']
-            if browser_url is None:
-                pass
-            elif since is None or event['modified_date'] >= since:
-                event_list.append(event)
-            elif get_event_id(browser_url) not in calendar:
-                logger.info('Adding promoted: ' + browser_url)
-                event_list.append(event)
-        next_url = j_data['next']
-        if next_url is None:
-            break
-        url = next_url
-    return event_list
-
-
 def get_mobilize_events(since):
     event_list = []
-    if since is None:
-        update = ''
-    else:
-        update = '&updated_since={}'.format(since)
-    url = 'https://api.mobilize.us/v1/organizations/{}/events?per_page=100{}&timeslot_start=gt_now'.format(
-                                                                                    mobilize_org(),
-                                                                                    update)
-    while True:
-        r = requests.get(url, headers=api_header)
-        assert r.ok, r.text
-        j_data = r.json()
-        for event in j_data['data']:
-            browser_url = event['browser_url']
-            if browser_url is not None:
-                event_list.append(event)
-        next_url = j_data['next']
-        if next_url is None:
-            break
-        url = next_url
+    calendar = get_event_map()
+    for org in mobilize_orgs():
+        url = 'https://api.mobilize.us/v1/organizations/{}/events?per_page=100&timeslot_start=gt_now'.format(org)
+        while True:
+            r = requests.get(url, headers=api_header)
+            assert r.ok, r.text
+            j_data = r.json()
+            for event in j_data['data']:
+                browser_url = event['browser_url']
+                if browser_url is None:
+                    pass
+                elif since is None or event['modified_date'] >= since:
+                    event_list.append(event)
+                elif get_event_id(browser_url) not in calendar:
+                    logger.info('Adding promoted: ' + browser_url)
+                    event_list.append(event)
+            next_url = j_data['next']
+            if next_url is None:
+                break
+            url = next_url
     return event_list
 
 
@@ -117,20 +91,21 @@ def get_all_mobilize_events():
     if use_saved_data:
         return load_mobilize_events()
     events = []
-    url = 'https://api.mobilize.us/v1/organizations/' + mobilize_org() + '/events?per_page=100&timeslot_start=gt_now'
-    while True:
-        logger.info(url)
-        r = requests.get(url, headers=api_header)
-        assert r.ok, r.text
-        j_data = r.json()
-        for event in j_data['data']:
-            if event['browser_url'] is not None:
-                # print(event['browser_url'], event['sponsor']['name'], "##", event['title'])
-                events.append(event)
-        next_url = j_data['next']
-        if next_url is None:
-            break
-        url = next_url
+    for org in mobilize_orgs():
+        url = 'https://api.mobilize.us/v1/organizations/' + org + '/events?per_page=100&timeslot_start=gt_now'
+        while True:
+            logger.info(url)
+            r = requests.get(url, headers=api_header)
+            assert r.ok, r.text
+            j_data = r.json()
+            for event in j_data['data']:
+                if event['browser_url'] is not None:
+                    # print(event['browser_url'], event['sponsor']['name'], "##", event['title'])
+                    events.append(event)
+            next_url = j_data['next']
+            if next_url is None:
+                break
+            url = next_url
     return events
 
 

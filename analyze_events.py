@@ -44,8 +44,14 @@ def find_duplicate_calendar_events(all_events):
         if url in skip_list[the_events_calendar.calendar_name]:
             continue
         last_mod = max(event['modified'] for event in event_set)
+        # If there is a manually created event, delete all automated events
         for event in event_set:
-            if event['modified'] == last_mod:
+            if str(event['author']) != the_events_calendar.wordpress_automation_author_id:
+                last_mod = 0
+                break
+        for event in event_set:
+            if event['modified'] == last_mod or \
+                    str(event['author']) != the_events_calendar.wordpress_automation_author_id:
                 print('Keeping: ', event['url'])
             else:
                 print('Deleting duplicate: ', event['url'])
