@@ -171,7 +171,7 @@ def mobilize_america_to_action_network(start, end, dry_run):
                 continue
             # There is a sponsor field in the attendance record but mobilize for somereason has an extra
             # sponsor key which is none in that record. So use the event's sponsor field.
-            if 'CANCELLED' in record['status'] or event['sponsor']['name'] != 'Swing Blue Alliance':
+            if record['status'] is None or 'CANCELLED' in record['status'] or event['sponsor']['name'] != 'Swing Blue Alliance':
                 continue
             new_tag = create_action_network_tag(data, record_start, 'Participant')
             tags.add(new_tag)
