@@ -65,6 +65,7 @@ def get_mobilize_event(url):
 def get_mobilize_events(since):
     event_list = []
     calendar = get_event_map()
+    seen_events = set()
     for org in mobilize_orgs():
         url = 'https://api.mobilize.us/v1/organizations/{}/events?per_page=100&timeslot_start=gt_now'.format(org)
         while True:
@@ -72,6 +73,9 @@ def get_mobilize_events(since):
             assert r.ok, r.text
             j_data = r.json()
             for event in j_data['data']:
+                if event['id'] in seen_events:
+                    continue
+                seen_events.add(event['id'])
                 browser_url = event['browser_url']
                 if browser_url is None:
                     pass
@@ -91,6 +95,7 @@ def get_all_mobilize_events():
     if use_saved_data:
         return load_mobilize_events()
     events = []
+    seen_events = set()
     for org in mobilize_orgs():
         url = 'https://api.mobilize.us/v1/organizations/' + org + '/events?per_page=100&timeslot_start=gt_now'
         while True:
@@ -99,6 +104,9 @@ def get_all_mobilize_events():
             assert r.ok, r.text
             j_data = r.json()
             for event in j_data['data']:
+                if event['id'] in seen_events:
+                    continue
+                seen_events.add(event['id'])
                 if event['browser_url'] is not None:
                     # print(event['browser_url'], event['sponsor']['name'], "##", event['title'])
                     events.append(event)
