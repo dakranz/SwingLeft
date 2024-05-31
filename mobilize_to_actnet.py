@@ -189,12 +189,14 @@ def mobilize_america_to_action_network(start, end, dry_run):
                         zip_code = '0' + zip_code
                     people_entry['zip'] = zip_code
                     people_entry['phone'] = person['phone_numbers'][0]['number']
+                    people_entry['last_event'] = event['id']
             else:
                 zip_code = person['postal_addresses'][0]['postal_code']
                 if zip_code and len(zip_code) == 4:
                     zip_code = '0' + zip_code
                 people[email] = {'fn': person['given_name'], 'ln': person['family_name'], 'zip': zip_code,
-                                 'phone': person['phone_numbers'][0]['number'], 'tags': set([new_tag])}
+                                 'phone': person['phone_numbers'][0]['number'], 'tags': set([new_tag]),
+                                 'last_event': event['id']}
             attendee_records.append([people[email]['fn'], people[email]['ln'], email, people[email]['zip'],
                                      people[email]['phone'], event['id'], timestamp_to_date_time(record_start),
                                      record['status'], event['sponsor']['name']])
@@ -220,11 +222,12 @@ def mobilize_america_to_action_network(start, end, dry_run):
         add_tags = [tag for tag in data['tags']]
         add_tags.append('Misc: SBA Newsletter Subscriber')
         if len(data) == 1:
-            records.append([email, ','.join(add_tags), "", "", "", ""])
-            person_data = {"email_addresses": [{"address": email}]}
+            records.append([email, ','.join(add_tags), "", "", "", ""], data['last_event'])
+            person_data = {"email_addresses": [{"address": email}], "custom_fields": {"last_event": data['last_event']}}
         else:
-            records.append([email, ','.join(add_tags), data['fn'], data['ln'], data['phone'], data['zip']])
-            person_data = {"email_addresses": [{"address": email}]}
+            records.append([email, ','.join(add_tags), data['fn'], data['ln'], data['phone'], data['zip'],
+                            data['last_event']])
+            person_data = {"email_addresses": [{"address": email}], "custom_fields": {"last_event": data['last_event']}}
             if not all([data['fn'], data['ln'], data['zip'], data['phone']]):
                 logger.info('%s %s', email, data)
             if data['ln']:
@@ -246,7 +249,7 @@ def mobilize_america_to_action_network(start, end, dry_run):
         writer.writerows(attendee_records)
     with open('mobilize-action-network-upload.csv', mode='w', newline='', encoding='utf-8') as ofile:
         writer = csv.writer(ofile)
-        writer.writerow(['Email', 'Tags', 'First Name', 'Last Name', 'Phone', 'Zipcode'])
+        writer.writerow(['Email', 'Tags', 'First Name', 'Last Name', 'Phone', 'Zipcode', 'Last Event'])
         writer.writerows(records)
     new_tags = tags.difference(set(action_network.get_tags()))
 
