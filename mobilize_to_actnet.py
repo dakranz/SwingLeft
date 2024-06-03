@@ -214,15 +214,16 @@ def mobilize_america_to_action_network(start, end, dry_run):
             if people_entry is not None:
                 people_entry['tags'].add(new_tag)
             else:
-                people[email] = {'tags': set([new_tag])}
+                people[email] = {'tags': set([new_tag]), 'last_event': event['id']}
 
     people_data = []
     records = []
     for email, data in people.items():
         add_tags = [tag for tag in data['tags']]
         add_tags.append('Misc: SBA Newsletter Subscriber')
-        if len(data) == 1:
-            records.append([email, ','.join(add_tags), "", "", "", ""], data['last_event'])
+        if 'fn' not in data:
+            # host only
+            records.append([email, ','.join(add_tags), "", "", "", "", data['last_event']])
             person_data = {"email_addresses": [{"address": email}], "custom_fields": {"last_event": data['last_event']}}
         else:
             records.append([email, ','.join(add_tags), data['fn'], data['ln'], data['phone'], data['zip'],
