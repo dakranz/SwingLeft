@@ -30,7 +30,7 @@ parser.add_argument("--update_timestamp", action="store_true",
 args = parser.parse_args()
 
 
-skip_list = []
+skip_list = [633016]
 
 
 def mobilize_event_feed(start):
