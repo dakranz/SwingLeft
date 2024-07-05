@@ -220,6 +220,10 @@ def mobilize_america_to_action_network(start, end, dry_run):
     records = []
     for email, data in people.items():
         add_tags = [tag for tag in data['tags']]
+        for tag in add_tags:
+            if '_Mailing_' in tag:
+                add_tags.append('Interest: Postcard/Letter')
+                break
         add_tags.append('Misc: SBA Newsletter Subscriber')
         if 'fn' not in data:
             # host only
