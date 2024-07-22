@@ -95,7 +95,7 @@ def get_recency(event_time):
 
 event_type_map = {'CANVASS': 'Canvass', 'PHONE_BANK': 'PhoneBank', 'TEXT_BANK': 'TextBank',
                   'MEETING': 'Other', 'COMMUNITY': 'Other', 'FUNDRAISER': 'Fundraiser', 'MEET_GREET': 'Other',
-                  'HOUSE_PARTY': 'Other', 'VOTER_REG': 'PhoneBank', 'TRAINING': 'Other',
+                  'HOUSE_PARTY': 'Other', 'VOTER_REG': 'Canvass', 'TRAINING': 'Other',
                   'FRIEND_TO_FRIEND_OUTREACH': 'Other', 'DEBATE_WATCH_PARTY': 'Other', 'ADVOCACY_CALL': 'PhoneBank',
                   'RALLY': 'Rally', 'TOWN_HALL': 'Other', 'OFFICE_OPENING': 'Other', 'BARNSTORM': 'Other',
                   'SOLIDARITY_EVENT': 'Other', 'COMMUNITY_CANVASS': 'Canvass', 'SIGNATURE_GATHERING': 'Canvass',
@@ -132,6 +132,9 @@ def get_event_data(event):
     if data['state'] == 'NH' and (event['title'].lower().find('monthly meeting') >= 0 or
                                   event['description'].lower().find('monthly meeting') >= 0):
         data['type'] = 'Monthly Meeting'
+    # Voter reg events are assumed to be phone banks if virtual, else canvass as in the event type map.
+    elif event['event_type'] == 'VOTER_REG' and event['is_virtual']:
+        data['type'] = 'PhoneBank'
     else:
         data['type'] = event_type_map.get(event['event_type'], 'Other')
     return data

@@ -2,10 +2,8 @@ import argparse
 import csv
 import datetime
 import operator
-import requests
 import shutil
 
-import api_key
 import the_events_calendar
 import events
 import mobilize_to_calendar
@@ -44,7 +42,7 @@ def process_event_feed(event_list, force=False):
     for event in event_list:
         title = event['title']
         if event['id'] in skip_list:
-            print('Skipping: ' + event['title'])
+            # print('Skipping: ' + event['title'], file=sys.stderr)
             continue
         event_data = mobilize_to_calendar.mobilize_to_calendar(event, force)
         if event_data is not None:
