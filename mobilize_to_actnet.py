@@ -37,6 +37,8 @@ sh = logging.StreamHandler()
 sh.setFormatter(logging.Formatter('%(levelname)s - %(message)s'))
 logger.addHandler(sh)
 
+skip_list = [648802]
+
 
 def get_mobilize_contact(event):
     url = '{}/{}'.format(entry_point, event)
@@ -159,6 +161,9 @@ def mobilize_america_to_action_network(start, end, dry_run):
     event_records = []
     attendee_records = []
     for event in get_mobilize_events(start, end):
+        if event['id'] in skip_list:
+            logger.info('Skipping: %s', event['id'])
+            continue
         data = get_event_data(event)
         for timeslot in event['timeslots']:
             timeslot_start = timeslot['start_date']
