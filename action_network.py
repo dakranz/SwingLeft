@@ -1,5 +1,6 @@
 import api_key
 import requests
+import time
 
 entry_point = 'https://actionnetwork.org/api/v2/'
 
@@ -44,6 +45,7 @@ def get_tags():
         if 'next' not in j_data['_links']:
             break
         url = j_data['_links']['next']['href']
+        time.sleep(1)
     return tags
 
 
