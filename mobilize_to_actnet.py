@@ -165,6 +165,7 @@ def mobilize_america_to_action_network(start, end, dry_run):
             logger.info('Skipping: %s', event['id'])
             continue
         data = get_event_data(event)
+        print(event)
         for timeslot in event['timeslots']:
             timeslot_start = timeslot['start_date']
             if start <= timeslot_start < end:

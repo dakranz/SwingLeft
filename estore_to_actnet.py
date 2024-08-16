@@ -10,6 +10,7 @@ import time
 
 import action_network
 import google_sheets
+import the_events_calendar
 
 _parser = argparse.ArgumentParser()
 _parser.add_argument("-s", "--start", help="Oldest record to process.")
@@ -55,6 +56,7 @@ def get_data(headers, sheet_data):
     address_index = headers.index('Address')
     phone_index = headers.index('Phone')
     date_index = headers.index('Time')
+    products_index = headers.index('Products')
     data = []
     for row in sheet_data:
         name = row[name_index].strip()
@@ -73,8 +75,12 @@ def get_data(headers, sheet_data):
         datum['date'] = string_to_date_string(date)
         datum['email'] = email
         datum['org'] = 'SBA'
-        datum['state'] = 'National'
         datum['type'] = 'Mailing'
+        state = the_events_calendar.infer_state_tags(row[products_index])
+        if state is None or state == 'national':
+            datum['state'] = 'National'
+        else:
+            datum['state'] = the_events_calendar.states[state][0]
         if address:
             zipcode = address.split()[-1]
             if '-' in zipcode:
@@ -151,12 +157,12 @@ def estore_to_action_network(start_record, end_record, dry_run):
         logger.info(tag_name)
         if not dry_run:
             action_network.add_tag(tag_name)
-            time.sleep(.2)
+            time.sleep(1)
     for person in people_data:
         logger.info(person['person']['email_addresses'][0]['address'])
         if not dry_run:
             action_network.add_person(person)
-            time.sleep(.2)
+            time.sleep(1)
     return len(rows)
 
 
