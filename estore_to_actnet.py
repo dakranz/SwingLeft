@@ -143,7 +143,6 @@ def estore_to_action_network(start_record, end_record, dry_run):
         writer = csv.writer(ofile)
         writer.writerow(['Email', 'Tags', 'First Name', 'Last Name', 'Phone', 'Zipcode'])
         writer.writerows(records)
-    new_tags = tags.difference(set(action_network.get_tags()))
 
     # people_data = people_data[0:10]
     # new_tags = set()
@@ -153,7 +152,7 @@ def estore_to_action_network(start_record, end_record, dry_run):
     #
     if not dry_run:
         logger.info('Writing live data to Action Network')
-    for tag_name in new_tags:
+    for tag_name in tags:
         logger.info(tag_name)
         if not dry_run:
             action_network.add_tag(tag_name)
