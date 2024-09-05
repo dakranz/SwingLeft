@@ -143,7 +143,8 @@ def delete_calendar_event(event_id):
     url = '{}events/{}'.format(calendar_api_base_url(), event_id)
     logger.info("Deleting: " + url)
     r = requests.delete(url, headers=the_events_calendar.auth_header())
-    assert r.ok, r.text
+    # Event may have already been deleted
+    assert r.ok or r.status_code == 410, r.text
 
 
 calendar_metadata_names = {'categories': '?per_page=50&status=publish&hide_empty=0',

@@ -12,6 +12,14 @@ def api_header():
 def add_person(data):
     url = entry_point + 'people?background_request=true'
     r = requests.post(url, json=data, headers=api_header())
+    if r.status_code == 502:
+        print('Gateway error; retrying')
+        time.sleep(30)
+        r = requests.post(url, json=data, headers=api_header())
+        if r.status_code == 502:
+            print('Gateway error; retrying')
+            time.sleep(120)
+            r = requests.post(url, json=data, headers=api_header())
     assert r.status_code == 200, r.text
     return r.json()
 
