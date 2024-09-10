@@ -234,7 +234,6 @@ def mobilize_america_to_action_network(start, end, dry_run):
             if '_Mailing_' in tag:
                 add_tags.append('Interest: Postcard/Letter')
                 break
-        add_tags.append('Misc: SBA Newsletter Subscriber')
         if 'fn' not in data:
             # host only
             records.append([email, ','.join(add_tags), "", "", "", "", data['last_event']])

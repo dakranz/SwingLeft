@@ -129,7 +129,6 @@ def estore_to_action_network(start_record, end_record, dry_run):
     records = []
     for email, data in people.items():
         add_tags = [tag for tag in data['tags']]
-        add_tags.append('Misc: SBA Newsletter Subscriber')
         records.append([email, ','.join(add_tags), data['fn'], data['ln'], data['phone'], data['zip']])
         person_data = {"family_name": data['ln'], "given_name": data['fn'], "email_addresses": [{"address": email}]}
         if data['zip']:
