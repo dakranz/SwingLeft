@@ -59,7 +59,16 @@ def get_tags():
 
 def add_tag(name):
     url = entry_point + 'tags'
-    r = requests.post(url, json={'name': name}, headers=api_header())
+    data = {'name': name}
+    r = requests.post(url, json=data, headers=api_header())
+    if r.status_code == 502:
+        print('Gateway error; retrying')
+        time.sleep(30)
+        r = requests.post(url, json=data, headers=api_header())
+        if r.status_code == 502:
+            print('Gateway error; retrying')
+            time.sleep(120)
+            r = requests.post(url, json=data, headers=api_header())
     assert r.status_code == 200, r.text
 
 
