@@ -64,7 +64,7 @@ def get_mobilize_attendances(event):
 
 def get_mobilize_events(start, end):
     event_list = []
-    url = '{}?per_page=100&timeslot_start=gte_{}&timeslot_end=lt_{}'.format(entry_point, start, end)
+    url = '{}?visibility=PRIVATE&visibility=PUBLIC&per_page=100&timeslot_start=gte_{}&timeslot_end=lt_{}'.format(entry_point, start, end)
     while True:
         r = requests.get(url, headers=api_header)
         assert r.ok, r.text
@@ -154,6 +154,23 @@ attendee_headers = ['First name', 'Last name', 'Email', 'ZIP', 'Mobile number', 
                     'Attendance status', 'Event organization name']
 
 
+def add_action_network_tags_and_fields(people_entry, event):
+    # Add any Action Network tags from the event which start with '#AN:'
+    for tag in event['tags']:
+        tag_name = tag['name']
+        if tag_name.startswith('#an:'):
+            people_entry['tags'].add(tag_name[4:])
+        elif tag_name.startswith('#anf:'):
+            (key, value) = tag_name[5:].split('=')
+            people_entry['fields'][key] = value
+
+
+def add_to_events_field(current_events, new):
+    if current_events.count('/') >= 50:
+        current_events = current_events[0:current_events.rfind('/')]
+    return '/' + new + current_events
+
+
 # Upload records to action network from mobilize shift data. Start and end are as %Y-%m-%d %H:%M:%S
 def mobilize_america_to_action_network(start, end, dry_run):
     people = {}
@@ -199,14 +216,19 @@ def mobilize_america_to_action_network(start, end, dry_run):
                         zip_code = '0' + zip_code
                     people_entry['zip'] = zip_code
                     people_entry['phone'] = person['phone_numbers'][0]['number']
-                    people_entry['last_event'] = event['id']
             else:
                 zip_code = person['postal_addresses'][0]['postal_code']
                 if zip_code and len(zip_code) == 4:
                     zip_code = '0' + zip_code
                 people[email] = {'fn': person['given_name'], 'ln': person['family_name'], 'zip': zip_code,
                                  'phone': person['phone_numbers'][0]['number'], 'tags': set([new_tag]),
-                                 'last_event': event['id']}
+                                 'events': [], 'events_hosted': set(), 'fields': {}, 'last_event': (0, 0)}
+            people_entry = people[email]
+            add_action_network_tags_and_fields(people_entry, event)
+            people_entry['events'].append((event['id'], record_start))
+            timestamp = people_entry['last_event'][1]
+            if start > timestamp:
+                people_entry['last_event'] = (event['id'], start)
             attendee_records.append([people[email]['fn'], people[email]['ln'], email, people[email]['zip'],
                                      people[email]['phone'], event['id'], timestamp_to_date_time(record_start),
                                      record['status'], event['sponsor']['name']])
@@ -215,8 +237,8 @@ def mobilize_america_to_action_network(start, end, dry_run):
             continue
         # Use modified date to indicate activity by the host
         modified_at = int(event['modified_date'])
-        if modified_at <= start or modified_at > end:
-            continue
+        # if modified_at <= start or modified_at > end:
+        #     continue
         for email in data['hosts']:
             new_tag = create_action_network_tag(data, modified_at, 'Organizer')
             tags.add(new_tag)
@@ -224,7 +246,9 @@ def mobilize_america_to_action_network(start, end, dry_run):
             if people_entry is not None:
                 people_entry['tags'].add(new_tag)
             else:
-                people[email] = {'tags': set([new_tag]), 'last_event': event['id']}
+                people[email] = {'tags': set([new_tag]), 'events': [], 'events_hosted': set(), 'fields': {},
+                                 'last_event': (0, 0)}
+            people[email]['events_hosted'].add(str(event['id']))
 
     people_data = []
     records = []
@@ -234,16 +258,37 @@ def mobilize_america_to_action_network(start, end, dry_run):
             if '_Mailing_' in tag:
                 add_tags.append('Interest: Postcard/Letter')
                 break
+        lookup_data = action_network.get_person(email)
+        time.sleep(.25)
+        previous_events = ""
+        previous_events_hosted = ""
+        if lookup_data and 'custom_fields' in lookup_data:
+            previous_events = lookup_data['custom_fields'].get('Events_Attended', "")
+            previous_events_hosted = lookup_data['custom_fields'].get('Events_Hosted', "")
+        new_events = data['events']
+        new_events.sort(key=lambda x: x[1])
+        for e in new_events:
+            previous_events = add_to_events_field(previous_events, "{} {}".format(e[0], timestamp_to_date(e[1])))
+        for e in data['events_hosted']:
+            if e in previous_events_hosted:
+                continue
+            previous_events_hosted = add_to_events_field(previous_events_hosted, e)
+        custom_fields = data['fields']
+        last_event = data['last_event'][0]
+        if last_event != 0:
+            custom_fields["last_event"] = last_event
+        custom_fields["Events_Attended"] = previous_events
+        custom_fields["Events_Hosted"] = previous_events_hosted
         if 'fn' not in data:
             # host only
-            records.append([email, ','.join(add_tags), "", "", "", "", data['last_event']])
-            person_data = {"email_addresses": [{"address": email}], "custom_fields": {"last_event": data['last_event']}}
+            records.append([email, ','.join(add_tags), "", "", "", "", custom_fields])
+            person_data = {"email_addresses": [{"address": email}], "custom_fields": custom_fields}
         else:
             records.append([email, ','.join(add_tags), data['fn'], data['ln'], data['phone'], data['zip'],
-                            data['last_event']])
-            person_data = {"email_addresses": [{"address": email}], "custom_fields": {"last_event": data['last_event']}}
-            if not all([data['fn'], data['ln'], data['zip'], data['phone']]):
-                logger.info('%s %s', email, data)
+                            custom_fields])
+            person_data = {"email_addresses": [{"address": email}], "custom_fields": custom_fields}
+            # if not all([data['fn'], data['ln'], data['zip'], data['phone']]):
+            #     logger.info('%s %s', email, data)
             if data['ln']:
                 person_data["family_name"] = data['ln']
             if data['fn']:
@@ -263,7 +308,7 @@ def mobilize_america_to_action_network(start, end, dry_run):
         writer.writerows(attendee_records)
     with open('mobilize-action-network-upload.csv', mode='w', newline='', encoding='utf-8') as ofile:
         writer = csv.writer(ofile)
-        writer.writerow(['Email', 'Tags', 'First Name', 'Last Name', 'Phone', 'Zipcode', 'Last Event'])
+        writer.writerow(['Email', 'Tags', 'First Name', 'Last Name', 'Phone', 'Zipcode', 'Custom Fields'])
         writer.writerows(records)
 
     # people_data = people_data[0:10]
