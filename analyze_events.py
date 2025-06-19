@@ -65,7 +65,7 @@ def time_slot_string(event_id, start):
     return '{}#{}'.format(event_id, start)
 
 
-def find_orphaned_calendar_events(org, calendar_events, mobilize_events):
+def find_orphaned_calendar_events(orgs, calendar_events, mobilize_events):
     now = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     all_slots = set()
     for event in mobilize_events:
@@ -73,7 +73,14 @@ def find_orphaned_calendar_events(org, calendar_events, mobilize_events):
             start = datetime.datetime.fromtimestamp(slot['start_date']).strftime('%Y-%m-%d %H:%M:%S')
             all_slots.add(time_slot_string(event['id'], start))
     for event in calendar_events:
-        if event['start_date'] <= now or 'mobilize.us/' + org not in event['website']:
+        if event['start_date'] <= now:
+            continue
+        check_date = False
+        for org in orgs:
+            if 'mobilize.us/' + org in event['website']:
+                check_date = True
+                break
+        if not check_date:
             continue
         if time_slot_string(events.get_event_id(event['website']), event['start_date']) not in all_slots:
             print('Deleting orphaned: ', event['url'])
@@ -101,13 +108,13 @@ def main():
     try:
         the_events_calendar.set_global_calendar(args.calendar)
         if the_events_calendar.calendar_name == 'sba':
-            org = 'swingbluealliance'
+            orgs = ['swingbluealliance', 'activist-afternoons']
         else:
             org = 'news-magic'
         calendar_events = events.get_calendar_events()
         mobilize_events = events.get_all_mobilize_events()
         find_duplicate_calendar_events(calendar_events)
-        find_orphaned_calendar_events(org, calendar_events, mobilize_events)
+        find_orphaned_calendar_events(orgs, calendar_events, mobilize_events)
     except Exception as e:
         err_message = traceback.format_exc()
         if args.report:
