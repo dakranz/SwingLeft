@@ -49,10 +49,15 @@ def get_mobilize_contact(event):
 
 
 def get_mobilize_attendances(event):
+    # play with sleeps to avoid rate limit issues
     url = '{}/{}/attendances?per_page=100'.format(entry_point, event)
     while True:
         r = requests.get(url, headers=api_header)
-        assert r.ok, r.text
+        if r.status_code == 429:
+            # rate limit
+            time.sleep(5)
+            continue
+        assert r.ok, r
         j_data = r.json()
         for attendance in j_data['data']:
             yield attendance
@@ -60,6 +65,7 @@ def get_mobilize_attendances(event):
         if next_url is None:
             break
         url = next_url
+        time.sleep(.1)
 
 
 def get_mobilize_events(start, end):
