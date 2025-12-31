@@ -3,7 +3,7 @@ import csv
 import datetime
 from dateutil import parser
 import logging
-import re
+import random
 import requests
 import shutil
 import time
@@ -34,7 +34,7 @@ args = _parser.parse_args()
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG if args.debug else logging.INFO)
 sh = logging.StreamHandler()
-sh.setFormatter(logging.Formatter('%(levelname)s - %(message)s'))
+sh.setFormatter(logging.Formatter('%(levelname)s - %(asctime)s - %(message)s'))
 logger.addHandler(sh)
 
 skip_list = [648802]
@@ -51,13 +51,21 @@ def get_mobilize_contact(event):
 def get_mobilize_attendances(event):
     # play with sleeps to avoid rate limit issues
     url = '{}/{}/attendances?per_page=100'.format(entry_point, event)
+    backoff = 2
     while True:
         r = requests.get(url, headers=api_header)
         if r.status_code == 429:
             # rate limit
-            time.sleep(5)
-            continue
+            sleep = random.randint(1, 5) * backoff
+            logger.info('Rate limit: sleeping %s backoff %s', sleep, backoff)
+            time.sleep(sleep)
+            backoff = backoff * 1.5
+            if backoff <= 16:
+                continue
+        if backoff > 2:
+            logger.info('Continuing')
         assert r.ok, r
+        backoff = 2
         j_data = r.json()
         for attendance in j_data['data']:
             yield attendance
@@ -65,7 +73,7 @@ def get_mobilize_attendances(event):
         if next_url is None:
             break
         url = next_url
-        time.sleep(.1)
+        time.sleep(random.randint(1, 10) / 10)
 
 
 def get_mobilize_events(start, end):
