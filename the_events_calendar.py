@@ -38,7 +38,7 @@ def auth_header():
 calendar_import_headers = ['Event Name', 'Event Description', 'Event Organizers', 'Event Venue Name',
                            'Event Start Date', 'Event Start Time', 'Event End Date', 'Event End Time',
                            'Event Website', 'City', 'State', 'Event Category', 'Event Tags', 'Zip Code',
-                           'Region']
+                           'Address', 'Latitude', 'Longitude']
 
 
 # Matching will be case-sensitive iff a search term has an uppercase char

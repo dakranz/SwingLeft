@@ -8,7 +8,7 @@ import time
 
 import events
 import the_events_calendar
-
+import json
 parser = argparse.ArgumentParser()
 parser.add_argument("csv_file", help="csv file with event data")
 parser.add_argument("-y", "--dry_run", action="store_true",
@@ -66,29 +66,48 @@ def get_category_id(metadata, value):
     return get_metadata_id(metadata, 'categories', 'slug', value)
 
 
-def get_venue_id(metadata, value, city, state, zip_code):
-    venue_id = get_metadata_id(metadata, 'venues', 'venue', value)
-    if venue_id is not None:
-        return venue_id
-    if args.dry_run:
-        return 0
-    data = {'venue': value}
+def get_venue(venue_list, venue_map, venue_name, city, state, zip_code, address, latitude, longitude):
+    if not city:
+        venue_name = 'Online/Anywhere'
+#        return None
+    if latitude and longitude:
+        if not venue_name:
+            venue_name = address + ' ' + city + ', ' + state
+        if (latitude, longitude) in venue_map:
+            return venue_map[(latitude, longitude)]
+    else:
+        if not venue_name:
+            venue_name = city + ', ' + state
+        for x in venue_list:
+            if x.get('venue', None) == venue_name:
+                return x
+    data = {'venue': venue_name}
     if city:
         data['city'] = city
     # Calendar API seems to use province but not state
     if state:
         data['province'] = state
     # Calendar API bug makes this bomb out
-    # if zip_code:
-    #     data['zip'] = int(zip_code)
+    if zip_code:
+        data['zip'] = zip_code
+    if address:
+        data['address'] = address
+    if latitude and longitude:
+        data['geo_lat'] = latitude
+        data['geo_lng'] = longitude
+    logger.info("Creating venue for %s %s %s %s %s %s", venue_name, city, state, address, latitude, longitude)
+    if args.dry_run:
+        return {'id': 0}
     r = requests.post(venues_base_url(), headers=the_events_calendar.auth_header(), json=data)
     if not r.ok:
-        logger.warning("Could not create venue for %s: %s", value, r.text)
+        logger.warning("Could not create venue for %s: %s", data, r.text)
         return None
     new_venue = r.json()
-    metadata['venues'].append(new_venue)
-    logger.info("Created venue for %s", value)
-    return new_venue['id']
+    if latitude and longitude:
+        venue_map[(latitude, longitude)] = new_venue
+    else:
+        venue_list.append(new_venue)
+    return new_venue
 
 
 def get_organizer_id(metadata, value):
@@ -152,13 +171,27 @@ def update_calendar(path):
         calendar_metadata = events.get_calendar_metadata()
         event_map = events.get_event_map()
         processed_mobilize_ids = set()
+        venues = {}
+        for venue in calendar_metadata['venues']:
+            if venue['author'] == the_events_calendar.wordpress_automation_author_id:
+                latitude = venue.get('geo_lat', None)
+                longitude = venue.get('geo_lng', None)
+                if latitude and longitude:
+                    venues[(latitude, longitude)] = venue
         for event in reader:
             title = event[headers.index('Event Name')]
             description = event[headers.index('Event Description')]
             website = event[headers.index('Event Website')]
             city = event[headers.index('City')]
             state = event[headers.index('State')]
-            zip_code = headers.index('Zip Code')
+            zip_code = event[headers.index('Zip Code')]
+            address = event[headers.index('Address')]
+            latitude = event[headers.index('Latitude')]
+            if latitude:
+                latitude = float(latitude)
+            longitude = event[headers.index('Longitude')]
+            if longitude:
+                longitude = float(longitude)
             start_date = event[headers.index('Event Start Date')] + ' ' + event[headers.index('Event Start Time')]
             end_date = event[headers.index('Event End Date')] + ' ' + event[headers.index('Event End Time')]
             categories_slugs = comma_list(event[headers.index('Event Category')])
@@ -167,15 +200,17 @@ def update_calendar(path):
             tags_slugs = comma_list(event[headers.index('Event Tags')])
             tag_ids = get_tag_ids(calendar_metadata, tags_slugs)
             category_ids = get_category_ids(calendar_metadata, categories_slugs)
-            venue_id = get_venue_id(calendar_metadata, venue_venue, city, state, zip_code)
+            venue = get_venue(calendar_metadata['venues'], venues, venue_venue, city, state, zip_code, address,
+                              latitude, longitude)
             organizer_id = get_organizer_id(calendar_metadata, organizer_organizer)
-            region = event[headers.index('Region')]
             post_data = {'title': title,
                          'description': description,
                          'start_date': start_date,
                          'end_date': end_date,
-                         'website': website
-                         }
+                         'website': website,
+                         'show_map': True,
+                         'show_map_link': True
+            }
             if (event[headers.index('Event Category')] == 'phone-banking' and
                     organizer_organizer in ['All in for NC', 'Swing Blue Alliance']):
                 post_data['image'] = "https://swingbluealliance.org/wp-content/uploads/2024/01/Rocking-Donkey.jpg"
@@ -195,8 +230,10 @@ def update_calendar(path):
                 post_data['categories'] = {'id': category_ids[0]}
             else:
                 post_data['categories'] = {}
-            if venue_id:
-                post_data['venue'] = {'id': venue_id}
+            if venue:
+                post_data['venue'] = {'id': venue['id']}
+            else:
+                post_data['is_virtual'] = True
             if organizer_id:
                 post_data['organizer'] = {'id': organizer_id}
             event = get_existing_event(event_map, post_data, processed_mobilize_ids, update_allowed)

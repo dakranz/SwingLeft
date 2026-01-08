@@ -54,8 +54,12 @@ def mobilize_orgs():
 
 def get_mobilize_event(url):
     event_id = get_event_id(url)
-    url = 'https://api.mobilize.us/v1/events/' + event_id
-    r = requests.get(url, headers=api_header)
+    r = None
+    for org in mobilize_orgs():
+        url = 'https://api.mobilize.us/v1/organizations/{}/events/{}'.format(org, event_id)
+        r = requests.get(url, headers=api_header)
+        if r.ok:
+            break
     assert r.ok, r.text
     event = r.json()['data']
     browser_url = event['browser_url']
@@ -141,6 +145,14 @@ def get_calendar_events():
 
 def delete_calendar_event(event_id):
     url = '{}events/{}'.format(calendar_api_base_url(), event_id)
+    logger.info("Deleting: " + url)
+    r = requests.delete(url, headers=the_events_calendar.auth_header())
+    # Event may have already been deleted
+    assert r.ok or r.status_code == 410, r.text
+
+
+def delete_venue(venue_id):
+    url = '{}venues/{}'.format(calendar_api_base_url(), venue_id)
     logger.info("Deleting: " + url)
     r = requests.delete(url, headers=the_events_calendar.auth_header())
     # Event may have already been deleted

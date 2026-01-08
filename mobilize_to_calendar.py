@@ -59,11 +59,24 @@ def mobilize_to_calendar(event, force):
     city = ''
     state = ''
     zip_code = ''
+    latitude = ''
+    longitude = ''
+    venue = ''
+    address = ''
     sponsor = event['sponsor']['slug']
-    if event['location'] is not None:
-        city = event['location']['locality']
-        state = event['location']['region']
-        zip_code = event['location']['postal_code']
+    if not event['is_virtual']:
+        location = event['location']
+        city = location['locality']
+        state = location['region']
+        zip_code = location['postal_code']
+        event_name = '{}, {} - {}'.format(city.upper(), state, event['title'])
+        if event['address_visibility'] == 'PUBLIC':
+            address = location['address_lines'][0]
+            venue = location['venue']
+            latitude = location['location']['latitude']
+            longitude = location['location']['longitude']
+    else:
+        event_name = event['title']
         # Skip outside MA
 #        if zip_code >= '02800' and sponsor not in events.inside_orgs and not force:
 #            return None
@@ -71,13 +84,6 @@ def mobilize_to_calendar(event, force):
 #    if not (city or zip_code or sponsor in events.inside_orgs or force):
 #        return None
     categories = []
-    region = ''
-    if state in regions.state_categories:
-        region = regions.state_categories[state]
-    elif state == 'MA' and 'location' in event['location']:
-        region = regions.get_ma_region_by_location(event['location']['location'], city)
-    elif state == 'MA':
-        region = regions.get_ma_region_by_zip(zip_code)
     text = event['title'] + ' ' + event['description']
     tags = []
     tag = the_events_calendar.get_mobilize_state_tags(event['tags'])
@@ -93,14 +99,6 @@ def mobilize_to_calendar(event, force):
         category = the_events_calendar.lookup_mobilize_event_type(event['event_type'])
         if category is not None:
             categories.append(category)
-    if not event['is_virtual'] and city and state:
-        event_name = '{}, {} - {}'.format(city.upper(), state, event['title'])
-        event_venue_name = '{}, {}'.format(city, state)
-    else:
-        if not event['is_virtual']:
-            logger.warning("Virtual event has no location. City: %s State: %s", city, state)
-        event_name = event['title']
-        event_venue_name = 'Online/Anywhere'
     now = int(datetime.datetime.now().timestamp())
     time_slots = [slot for slot in event['timeslots'] if slot['end_date'] > now]
     # Skip daily events
@@ -120,9 +118,9 @@ def mobilize_to_calendar(event, force):
         event_start_time = start.strftime("%H:%M:00")
         event_end_date = end.strftime("%Y-%m-%d")
         event_end_time = end.strftime("%H:%M:00")
-        event_record = [event_name, event_description, event_organizer, event_venue_name, event_start_date,
+        event_record = [event_name, event_description, event_organizer, venue, event_start_date,
                         event_start_time, event_end_date, event_end_time, event_url, city, state,
-                        ','.join(categories), ','.join(tags), zip_code, region]
+                        ','.join(categories), ','.join(tags), zip_code, address, latitude, longitude]
         # Accept full events for now
         # if time_slot['is_full']:
         #     continue
