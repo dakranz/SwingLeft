@@ -15,7 +15,7 @@ def find_orphaned_venues(calendar_events, venues):
     for venue in venues:
         if venue['id'] in seen_venues:
             continue
-        print('Deleting orphaned: ', venue['venue'])
+        print('Deleting orphaned: ', venue['venue'], venue['id'])
         if not args.dry_run:
             events.delete_venue(venue['id'])
             time.sleep(1)

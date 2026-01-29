@@ -99,8 +99,8 @@ def get_data(headers, sheet_data):
     return data
 
 
-# estore date comes from https://docs.google.com/spreadsheets/d/1a7cPSN1AcHaYidhNCiaDmJRWqFKLZdKP56PrefOBIhg/edit#gid=0
-estore_sheet_id = '1a7cPSN1AcHaYidhNCiaDmJRWqFKLZdKP56PrefOBIhg'
+# Data comes from https://docs.google.com/spreadsheets/d/1nPFjK2GnAjjKjsh4n547dOwuP13yA2O1kcm2bYfRXm0/edit?gid=0#gid=0
+estore_sheet_id = '1nPFjK2GnAjjKjsh4n547dOwuP13yA2O1kcm2bYfRXm0'
 estore_range = 'Live Order Update from the E-Store!A{}:J{}'
 
 

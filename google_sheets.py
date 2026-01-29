@@ -1,27 +1,24 @@
-from __future__ import print_function
-import httplib2
+import google.auth
+from googleapiclient.discovery import build
+from google.oauth2 import service_account
 
-from apiclient import discovery
+# The path to your downloaded service account JSON file
+SERVICE_ACCOUNT_FILE = 'credentials.json'
+# Define the scopes required (read access to spreadsheets)
+SCOPES = ['https://www.googleapis.com/auth/spreadsheets.readonly']
 
-import api_key
 
+def get_sheet_data(sheet_id, sheet_range):
+    # Authenticate and create the service object
+    credentials = service_account.Credentials.from_service_account_file(
+        SERVICE_ACCOUNT_FILE, scopes=SCOPES
+    )
+    service = build('sheets', 'v4', credentials=credentials)
 
-def get_sheet_data(id, range):
-    discoveryUrl = ('https://sheets.googleapis.com/$discovery/rest?'
-                    'version=v4')
-    service = discovery.build(
-        'sheets',
-        'v4',
-        http=httplib2.Http(),
-        discoveryServiceUrl=discoveryUrl,
-        developerKey=api_key.google_sheets_key)
-
-    spreadsheetId = id
-    rangeName = range
+    # Call the Sheets API to get data
     result = service.spreadsheets().values().get(
-        spreadsheetId=spreadsheetId, range=rangeName).execute()
+        spreadsheetId=sheet_id, range=sheet_range
+    ).execute()
     return result.get('values', [])
 
-
-
-#get_sheet_data('1a7cPSN1AcHaYidhNCiaDmJRWqFKLZdKP56PrefOBIhg', 'Live Order Update from the E-Store!A1:J')
+# get_sheet_data('17dta0BdPbPpZTLLdcTHr-MvaoSCl3sqkg1AgzCMP7Ew', 'Sheet1!A1:B2')
