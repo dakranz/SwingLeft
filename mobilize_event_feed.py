@@ -2,7 +2,9 @@ import argparse
 import csv
 import datetime
 import operator
+import random
 import shutil
+import time
 
 import the_events_calendar
 import events
@@ -57,6 +59,18 @@ def process_event_feed(event_list, force=False):
     print(out_name)
 
 
+def get_event_and_wait(url):
+    # Avoid rate limits
+    while True:
+        try:
+            print(url)
+            event = events.get_mobilize_event(url)
+            time.sleep(1)
+            return event
+        except AssertionError:
+            time.sleep(random.randint(1, 10))
+
+
 def main():
     if len([x for x in [args.hours, args.timestamp, args.url, args.file, args.all] if x]) != 1:
         print('Must specify exactly one of -t or --hours or --url or --all')
@@ -77,12 +91,12 @@ def main():
                 print('No timestamp file')
                 exit(1)
     elif args.url:
-        process_event_feed([events.get_mobilize_event(url) for url in args.url], force=True)
+        process_event_feed([get_event_and_wait(url) for url in args.url], force=True)
         return
     elif args.file:
         with open(args.file[0]) as ifile:
             urls = [u.strip() for u in ifile.readlines() if 'mobilize.us' in u]
-            process_event_feed([events.get_mobilize_event(url) for url in urls if url], force=True)
+            process_event_feed([get_event_and_wait(url) for url in urls if url], force=True)
         return
     if update_timestamp:
         try:

@@ -3,7 +3,7 @@ import logging
 import markdown
 
 import events
-import regions
+import geo_coords
 import the_events_calendar
 
 entry_point = 'https://api.mobilize.us/v1/'
@@ -54,8 +54,10 @@ def mobilize_to_calendar(event, force):
     # Mobilize uses markdown. There are many variants but we hope this markdown package will do no harm.
     # https://github.com/Python-Markdown/markdown
     event_description = markdown.markdown(event['description'])
-    event_description = event_description + '\n\n<b><a target=_blank href=' \
-                        + event_url + '>PLEASE SIGN UP HERE FOR THE EVENT</a></b>'
+    if not event['address_visibility'] == 'PUBLIC':
+        event_description = event_description + '\n\n<strong>Event address is private.</strong> Sign up for more details.'
+    event_description = event_description + '\n\n<a target=_blank href=' \
+                        + event_url + '>PLEASE SIGN UP HERE FOR THE EVENT</a>'
     city = ''
     state = ''
     zip_code = ''
@@ -75,6 +77,9 @@ def mobilize_to_calendar(event, force):
             venue = location['venue']
             latitude = location['location']['latitude']
             longitude = location['location']['longitude']
+        else:
+            venue = city + ', ' + state
+            (latitude, longitude) = geo_coords.get_location_from_zip(zip_code)
     else:
         event_name = event['title']
         # Skip outside MA

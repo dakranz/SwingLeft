@@ -74,7 +74,9 @@ def get_venue(venue_list, venue_map, venue_name, city, state, zip_code, address,
         if not venue_name:
             venue_name = address + ' ' + city + ', ' + state
         if (latitude, longitude) in venue_map:
-            return venue_map[(latitude, longitude)]
+            venue = venue_map[(latitude, longitude)]
+            logger.info("Using existing venue %s %s %s %s", venue['id'], venue_name, latitude, longitude)
+            return venue
     else:
         if not venue_name:
             venue_name = city + ', ' + state
@@ -103,6 +105,7 @@ def get_venue(venue_list, venue_map, venue_name, city, state, zip_code, address,
         logger.warning("Could not create venue for %s: %s", data, r.text)
         return None
     new_venue = r.json()
+    logger.info("Created venue %s", new_venue['id'])
     if latitude and longitude:
         venue_map[(latitude, longitude)] = new_venue
     else:
