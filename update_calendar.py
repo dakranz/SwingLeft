@@ -37,10 +37,6 @@ def venues_base_url():
     return 'https://' + the_events_calendar.wordpress_host_name + '/wp-json/tribe/events/v1/venues'
 
 
-# Unfortunately we cannot control the random names the events calendar assigns to custom fields but it should not change
-custom_field_map = {'region': '_ecp_custom_2'}
-
-
 def update_event(event_id, json):
     auth_header = the_events_calendar.auth_header()
     return requests.post('{}/{}'.format(events_base_url(), event_id), headers=auth_header, json=json)
@@ -217,9 +213,6 @@ def update_calendar(path):
             if (event[headers.index('Event Category')] == 'phone-banking' and
                     organizer_organizer in ['All in for NC', 'Swing Blue Alliance']):
                 post_data['image'] = "https://swingbluealliance.org/wp-content/uploads/2024/01/Rocking-Donkey.jpg"
-                # Not doing regions at the moment
-            # if region:
-            #     post_data[custom_field_map['region']] = region
             # There is a bug in The Events Calendar where tags and categories are documented to accept an array,
             # but in reality they take a single item. The documentation also says that various of the following can
             # take string names as values but in reality only providing ids seems to work.
