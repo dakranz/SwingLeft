@@ -291,6 +291,7 @@ def mobilize_america_to_action_network(start, end, dry_run):
         last_event = data['last_event'][0]
         if last_event != 0:
             custom_fields["last_event"] = last_event
+            custom_fields["last_event_date"] = timestamp_to_date_with_slash(data['last_event'][1])
         custom_fields["Events_Attended"] = previous_events
         custom_fields["Events_Hosted"] = previous_events_hosted
         if 'fn' not in data:
@@ -355,6 +356,10 @@ def timestamp_to_date_time(timestamp):
 
 def timestamp_to_date(timestamp):
     return datetime.datetime.fromtimestamp(float(timestamp)).strftime("%Y-%m-%d")
+
+
+def timestamp_to_date_with_slash(timestamp):
+    return datetime.datetime.fromtimestamp(float(timestamp)).strftime("%Y/%m/%d")
 
 
 def main():
