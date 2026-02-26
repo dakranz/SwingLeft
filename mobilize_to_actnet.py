@@ -42,7 +42,20 @@ skip_list = [648802]
 
 def get_mobilize_contact(event):
     url = '{}/{}'.format(entry_point, event)
-    r = requests.get(url, headers=api_header)
+    backoff = 2
+    while True:
+        r = requests.get(url, headers=api_header)
+        if r.status_code == 429:
+            # rate limit
+            sleep = random.randint(1, 5) * backoff
+            logger.info('Rate limit get_contact: sleeping %s backoff %s', sleep, backoff)
+            time.sleep(sleep)
+            backoff = backoff * 1.5
+            if backoff <= 16:
+                continue
+        if backoff > 2:
+            logger.info('Continuing')
+        break
     assert r.ok, r.text
     j_data = r.json()
     return j_data['data']['contact']
@@ -57,7 +70,7 @@ def get_mobilize_attendances(event):
         if r.status_code == 429:
             # rate limit
             sleep = random.randint(1, 5) * backoff
-            logger.info('Rate limit: sleeping %s backoff %s', sleep, backoff)
+            logger.info('Rate limit get_attendees: sleeping %s backoff %s', sleep, backoff)
             time.sleep(sleep)
             backoff = backoff * 1.5
             if backoff <= 16:
